@@ -8,12 +8,15 @@ self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim())})
 // red number on the app icon: +1 for every alert that arrives while the Hub is closed
 self.addEventListener("push",function(e){
   if(!self.navigator||!("setAppBadge" in self.navigator))return;
-  e.waitUntil(caches.open("silong-badge").then(function(c){
+  e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(list){
+    // Hub open on screen: it keeps the number right itself
+    if(list.some(function(c){return c.visibilityState==="visible"}))return;
+    return caches.open("silong-badge").then(function(c){
     return c.match("/badge").then(function(r){return r?r.text():"0"}).then(function(t){
       var n=(parseInt(t,10)||0)+1;
       return c.put("/badge",new Response(String(n))).then(function(){return self.navigator.setAppBadge(n)});
     });
-  }).catch(function(){}));
+  })}).catch(function(){}));
 });
 self.addEventListener("notificationclick",function(e){
   e.notification.close();

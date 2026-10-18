@@ -1897,7 +1897,7 @@ function appBadgeCount(){let n=0;try{n+=myUnseen().length}catch(e){}
   return n}
 function appBadgeSoon(){clearTimeout(ABT);ABT=setTimeout(appBadgeNow,800)}
 function appBadgeNow(){try{if(!("setAppBadge" in navigator))return;if(typeof isKiosk==="function"&&isKiosk())return;if(!ROLE)return;
-  const n=appBadgeCount();if(n===ABLAST)return;ABLAST=n;
+  const n=appBadgeCount();ABLAST=n;
   (n?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{});
   if(window.caches)caches.open("silong-badge").then(c=>c.put("/badge",new Response(String(n)))).catch(()=>{})}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){ABLAST=-1;appBadgeSoon()}});
