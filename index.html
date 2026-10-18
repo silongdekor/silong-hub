@@ -4248,9 +4248,17 @@ let NOTICES={};
 const NLVL={urgent:"🔴 Urgent",important:"📢 Important",fyi:"ℹ️ FYI"};
 const forMe=n=>!n.closed&&(ROLE==="gm"||(n.to||[]).includes("all")||(n.to||[]).includes(ROLE)||n.by===ME);
 const unseen=n=>forMe(n)&&n.by!==ME&&!((n.acks||{})[ME]);
-function noticeBoardPanel(){const cut=Date.now()-30*86400e3;const L=Object.entries(NOTICES).filter(([,n])=>forMe(n)&&!unseen(n)&&(n.at||0)>=cut).sort((a,b)=>(b[1].at||0)-(a[1].at||0));
-  if(!L.length)return null;const d=el("details",{class:"panel gmcat",style:"margin-top:12px"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"📌 Notice board"}),el("span",{class:"small",style:"margin-left:auto",text:`${L.length} notice${L.length>1?"s":""} · last 30 days`})));
-  let built=false;d.addEventListener("toggle",()=>{if(!d.open||built)return;built=true;d.append(el("div",{style:"margin-top:8px"},...L.map(([id,n])=>noticeCard(id,n,true))))});return d}
+function noticeBoardPanel(){const cut=Date.now()-30*86400e3;
+  const mineAny=n=>ROLE==="gm"||(n.to||[]).includes("all")||(n.to||[]).includes(ROLE)||n.by===ME;
+  const ALL=Object.entries(NOTICES).filter(([,n])=>n&&mineAny(n)&&!unseen(n)).sort((a,b)=>(b[1].at||0)-(a[1].at||0));
+  const REC=ALL.filter(([,n])=>(n.at||0)>=cut),OLD=ALL.filter(([,n])=>(n.at||0)<cut);
+  const d=el("details",{class:"panel gmcat",style:"margin-top:12px"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"📌 Notice board"}),el("span",{class:"small",style:"margin-left:auto",text:ALL.length?`${ALL.length} notice${ALL.length>1?"s":""} · tap to view`:"no notices yet"})));
+  const card=([id,n])=>{const c=noticeCard(id,n,true);if(n.closed)c.prepend(el("div",{class:"small",style:"font-weight:600",text:"Closed"}));return c};
+  let built=false;d.addEventListener("toggle",()=>{if(!d.open||built)return;built=true;const box=el("div",{style:"margin-top:8px"});d.append(box);
+    if(!ALL.length){box.append(el("p",{class:"small",text:"Notices you've marked Seen, and notices you've posted, are kept here."}));return}
+    if(REC.length)box.append(...REC.map(card));else box.append(el("p",{class:"small",text:"Nothing in the last 30 days."}));
+    if(OLD.length){const b=el("button",{class:"btn",style:"width:100%;margin-top:8px",text:`Show ${OLD.length} older notice${OLD.length>1?"s":""}`});b.onclick=()=>{b.replaceWith(...OLD.map(card))};box.append(b)}});
+  return d}
 function myUnseen(){return Object.entries(NOTICES).filter(([,n])=>unseen(n)).sort((a,b)=>(b[1].at||0)-(a[1].at||0))}
 function whoFor(n){const roles=(n.to||[]).includes("all")?Object.keys(ROLES).filter(r=>r!=="gm"):(n.to||[]);
   const ppl=Object.entries(ACCESS).filter(([id,a])=>roles.includes(a.role)&&id!==n.by).map(([id,a])=>({id,name:a.name||ROLES[a.role],role:a.role}));
