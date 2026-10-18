@@ -1529,7 +1529,7 @@ async function markPaid(p,ref,actual){
   if(p.src==="ledger")await db.collection("ledger").doc(p.lid).update({paidOn:val.on,paidRef:ref,status:"paid",...(actual!=null&&!isNaN(actual)&&Math.abs(actual-p.amt)>0.005?{amount:+actual,budgetAmount:p.amt}:{}),updatedAt:Date.now()});
   else{const D=(p.project===P)?{PD:PAID}:(ALLCACHE.data[p.project]||{PD:{}});const nv={...(D.PD||{}),[p.key]:val};await db.doc(pdPath(p.project)).set(nv);if(p.project!==P&&ALLCACHE.data[p.project])ALLCACHE.data[p.project].PD=nv}
 }
-function acctBadge(){
+function acctBadge(){appBadgeSoon();
   const D={reports,ORD:ORDERS,PD:PAID};const pay=[...projPayables(D,P),...ledgerPayables("project")];const U=urgentOf(pay,advances(pay,"project"));
   if(HOLDS===null&&db){loadHolds().then(acctBadge);return}const q=acctQCount();const t=$("#tAcct");const nU=U.filter(isPayU).length;t.textContent=(nU+q.n)?`Accounts · ${nU+q.n}`:"Accounts";t.classList.remove("flash");t.classList.toggle("hot",ROLE==="acct"&&q.hot>0);
 }
@@ -1889,7 +1889,19 @@ function gmBpiPanel(){
       el("button",{class:"btn",text:"Don't authorise",onclick:ev=>inlineAsk(f,{title:"Why not?",placeholder:"Reason for Accounts",okText:"Don't authorise",onOk:async why=>{await db.collection("transfers").doc(id).update({status:"rejected",rejectReason:why,updatedAt:Date.now()});toast("Accounts will see your reason.")}})}));
     r.append(f);pn.append(r)});box.append(pn);return box;
 }
-function homeBadge(){if(ROLE==="gm"){gmBadge();return}const t=$("#tHome");if(!t)return;const n=myUnseen().length;t.textContent=n?`Home · ${n}`:"Home";t.classList.remove("flash")}
+// ---------- icon badge (red number on the Home Screen icon) ----------
+let ABT=null,ABLAST=-1;
+function appBadgeCount(){let n=0;try{n+=myUnseen().length}catch(e){}
+  if(ROLE==="gm"){try{n+=pendGroups().length}catch(e){}try{n+=bpiPending().length}catch(e){}try{n+=Object.values(LEDGER).filter(e=>e&&e.kind==="pdc"&&e.status==="forsign").length}catch(e){}}
+  else if(ROLE==="acct"){try{n+=acctQCount().n}catch(e){}}
+  return n}
+function appBadgeSoon(){clearTimeout(ABT);ABT=setTimeout(appBadgeNow,800)}
+function appBadgeNow(){try{if(!("setAppBadge" in navigator))return;if(typeof isKiosk==="function"&&isKiosk())return;if(!ROLE)return;
+  const n=appBadgeCount();if(n===ABLAST)return;ABLAST=n;
+  (n?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{});
+  if(window.caches)caches.open("silong-badge").then(c=>c.put("/badge",new Response(String(n)))).catch(()=>{})}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){ABLAST=-1;appBadgeSoon()}});
+function homeBadge(){appBadgeSoon();if(ROLE==="gm"){gmBadge();return}const t=$("#tHome");if(!t)return;const n=myUnseen().length;t.textContent=n?`Home · ${n}`:"Home";t.classList.remove("flash")}
 function gmAlerts(){
   const td=iso(new Date()),tm=addD(td,1);const A=[];
   Object.entries(LEDGER).filter(([,e])=>e.kind==="pdc"&&!["cleared"].includes(e.status)).forEach(([id,c])=>{
@@ -1910,7 +1922,7 @@ function gmAlerts(){
 function gmAlarmBox(){const A=gmAlerts();if(!A.length)return "";
   return el("div",{},...A.map(a=>el("button",{class:"urgent on",style:"margin-top:8px",onclick:()=>{if(a.k==="hr"){hrSub="evals";switchTab("hr");return}if(a.k==="cash"){acctSub="cash";switchTab("acct");return}if(a.k==="recv"){switchTab("recv");return}switchTab("acct");acctSub=a.k==="pdc"?"pdc":"urgent";renderAcct()}},el("div",{class:"un",style:"font-size:20px",text:(a.k==="pdc"?"🔔 ":"⚠️ ")+a.txt}),el("div",{class:"ul",text:"Tap to open"}))))}
 function accessWaiting(){try{return Object.keys(PEOPLE||{}).filter(id=>id!==ME&&!(ACCESS||{})[id])}catch(e){return []}}
-function gmBadge(){const asHome=ROLE==="gm";const t=$(asHome?"#tHome":"#tGM");if(!t)return;let n=0;if(OWNER)try{const C=gmDashCounts();n=C.purch+C.acct+C.hr+C.msg+accessWaiting().length}catch(e){}if(asHome)try{n+=myUnseen().length}catch(e){}const lb=asHome?"Home":"GM";t.textContent=n?`${lb} · ${n}`:lb;t.classList.remove("flash","hot")}
+function gmBadge(){appBadgeSoon();const asHome=ROLE==="gm";const t=$(asHome?"#tHome":"#tGM");if(!t)return;let n=0;if(OWNER)try{const C=gmDashCounts();n=C.purch+C.acct+C.hr+C.msg+accessWaiting().length}catch(e){}if(asHome)try{n+=myUnseen().length}catch(e){}const lb=asHome?"Home":"GM";t.textContent=n?`${lb} · ${n}`:lb;t.classList.remove("flash","hot")}
 // ---------- APPROVAL PIPELINE: Purchasing → GM approves → Accounts pays / sends BizLink → GM authorizes ----------
 let ALLORD={},AOUNSUB=[],AOKEY="",APV={};
 const ocol=pid=>pid===BARN?"orders":"p/"+pid+"/orders";

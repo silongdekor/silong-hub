@@ -5,6 +5,16 @@ firebase.initializeApp({apiKey:"AIzaSyDkKnO7CI2XvKrNy7JRUl-y0cZUzg-pamU",authDom
 firebase.messaging();
 self.addEventListener("install",function(){self.skipWaiting()});
 self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim())});
+// red number on the app icon: +1 for every alert that arrives while the Hub is closed
+self.addEventListener("push",function(e){
+  if(!self.navigator||!("setAppBadge" in self.navigator))return;
+  e.waitUntil(caches.open("silong-badge").then(function(c){
+    return c.match("/badge").then(function(r){return r?r.text():"0"}).then(function(t){
+      var n=(parseInt(t,10)||0)+1;
+      return c.put("/badge",new Response(String(n))).then(function(){return self.navigator.setAppBadge(n)});
+    });
+  }).catch(function(){}));
+});
 self.addEventListener("notificationclick",function(e){
   e.notification.close();
   var url="https://silongdekor.github.io/silong-hub/";
