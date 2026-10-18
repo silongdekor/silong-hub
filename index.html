@@ -417,6 +417,7 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <style>
 #fbgate{position:fixed;inset:0;z-index:99999;background:#f3f5f4;display:flex;align-items:flex-start;justify-content:center;overflow:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:max(24px,env(safe-area-inset-top)) 16px 24px}
 #fbgate .card{background:#fff;color:#1d1e1b;max-width:380px;width:100%;margin-top:6vh;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,.12);padding:24px 20px}
@@ -435,6 +436,10 @@ body.kiosk #fbfoot{display:none}
 #fbtools button.main{background:#1b7190;color:#fff}#fbtools select{font-size:15px;padding:8px;max-width:100%}
 #fbtools .row{border-top:1px solid #ddd;padding:8px 0}#fbtools .small{font-size:13px;color:#555}
 @media (prefers-color-scheme: dark){#fbgate{background:#151a1c}#fbgate .card,#fbtools .card{background:#1f2629;color:#e8ecee}#fbgate input{background:#151a1c;color:#e8ecee;border-color:#3b4a50}#fbgate label{color:#b8c2c6}#fbtools .small{color:#aab}#fbtools button{background:transparent;color:#7cc0d8;border-color:#7cc0d8}#fbtools button.main{background:#1b7190;color:#fff}}
+#fbpushban{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:99990;background:#1b7190;color:#fff;border-radius:14px;padding:12px 14px;font:15px system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:520px;margin:0 auto}
+#fbpushban button{font-size:15px;padding:8px 14px;border-radius:9px;border:1.5px solid #fff;background:transparent;color:#fff;margin:8px 8px 0 0}#fbpushban button.main{background:#fff;color:#1b7190}
+#fbpushmsg{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:99991;background:#fff;color:#1d1e1b;border-left:5px solid #1b7190;border-radius:12px;padding:10px 14px;font:14px system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:520px;margin:0 auto}
+@media (prefers-color-scheme: dark){#fbpushmsg{background:#1f2629;color:#e8ecee}}
 </style>
 <script>
 (function(){
@@ -458,14 +463,57 @@ function dec(v){if(Array.isArray(v))return v.map(function(x){return(isPlain(x)&&
 function sid(id){return String(id).replace(/\//g,"_")}
 function wDS(s){return {id:s.id,exists:s.exists,data:function(){return s.exists?dec(s.data()):undefined},ref:wDoc(s.ref)}}
 function wQS(q){var docs=q.docs.map(wDS);return {docs:docs,size:docs.length,empty:!docs.length,forEach:function(f){docs.forEach(f)}}}
-function wDoc(r){return {id:r.id,path:r.path,get:function(){return r.get().then(wDS)},set:function(d,o){return o?r.set(enc(d),o):r.set(enc(d))},
-  update:function(d){var o={};for(var k in d){if(d[k]!==undefined)o[k]=enc(d[k])}return r.update(o)},delete:function(){return r.delete()},
+function wDoc(r){return {id:r.id,path:r.path,get:function(){return r.get().then(wDS)},set:function(d,o){return (o?r.set(enc(d),o):r.set(enc(d))).then(function(x){ping(r.path,d,"set");return x})},
+  update:function(d){var o={};for(var k in d){if(d[k]!==undefined)o[k]=enc(d[k])}return r.update(o).then(function(x){ping(r.path,d,"update");return x})},delete:function(){return r.delete()},
   onSnapshot:function(cb,err){return r.onSnapshot(function(s){cb(wDS(s))},err||function(){})},collection:function(p){return wColl(r.collection(p))}}}
 function wQ(q){return {get:function(){return q.get().then(wQS)},onSnapshot:function(cb,err){return q.onSnapshot(function(s){cb(wQS(s))},err||function(){})},
   where:function(a,b,c){return wQ(q.where(a,b,c))},orderBy:function(a,b){return wQ(q.orderBy(a,b))},limit:function(n){return wQ(q.limit(n))}}}
 function wColl(c){var q=wQ(c);q.id=c.id;q.path=c.path;q.doc=function(id){return wDoc(id==null?c.doc():c.doc(sid(id)))};
   q.add=function(d){return c.add(enc(d)).then(wDoc)};return q}
 var db={collection:function(p){return wColl(fs.collection(p))},doc:function(p){return wDoc(fs.doc(p))},raw:fs};
+
+// --- push notifications (sender = Cloudflare worker) ---
+var PUSH_URL="https://silong-push.april-c9e.workers.dev",VAPID="BOArBqhEWSkRw8ENfaQJmx2LYaDeplCc44Gp7dzNNLro-s0X-4IBK9DT-5vpv8B71aQHMW9F22mWKE_0cjgUcUM";
+function ping(path,d,op){try{var m=/^(ledger|transfers|notices)\/([^\/]+)$/.exec(path||"");if(!m||!d)return;
+  if(m[1]==="notices"){if(op!=="set"||d.level==="fyi"||d.closed)return}
+  else if(op!=="set"&&!("status" in d))return;
+  var u=auth.currentUser;if(!u)return;
+  u.getIdToken().then(function(t){return fetch(PUSH_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+t},body:JSON.stringify({col:m[1],id:m[2]})})}).catch(function(){})}catch(e){}}
+function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
+function isApp(){return navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)}
+function pushOK(){try{return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window&&!!firebase.messaging&&firebase.messaging.isSupported()!==false}catch(e){return false}}
+function tokHash(t){var h=0;for(var i=0;i<t.length;i++){h=(h*31+t.charCodeAt(i))|0}return (h>>>0).toString(36)}
+var fgHooked=false;
+function pushOn(ask){ // ask=true only from a tap
+  if(isIOS()&&!isApp())return Promise.resolve("home");
+  if(!pushOK())return Promise.resolve("unsupported");
+  var perm=Notification.permission==="granted"?Promise.resolve("granted"):ask?Promise.resolve(Notification.requestPermission()):Promise.resolve(Notification.permission);
+  return perm.then(function(p){if(p!=="granted")return p;
+    return navigator.serviceWorker.register("firebase-messaging-sw.js",{scope:"./"}).then(function(reg){
+      var msg=firebase.messaging();
+      if(!fgHooked){fgHooked=true;msg.onMessage(function(pl){var n=(pl&&pl.notification)||{};pushToast(n.title||"Silong Hub",n.body||"")})}
+      return msg.getToken({vapidKey:VAPID,serviceWorkerRegistration:reg})}).then(function(tok){
+      if(!tok)return "error";var u=auth.currentUser;if(!u)return "error";
+      var id=u.uid+"_"+tokHash(tok),key="silong-push-id-"+u.uid,old=null;try{old=localStorage.getItem(key)}catch(e){}
+      return fs.doc("pushTokens/"+id).set({token:tok,uid:u.uid,email:u.email||"",at:Date.now(),device:(navigator.userAgent||"").slice(0,140)}).then(function(){
+        if(old&&old!==id)fs.doc("pushTokens/"+old).delete().catch(function(){});
+        try{localStorage.setItem(key,id)}catch(e){}return "on"})})}).catch(function(e){console.warn("push",e);return "error"})}
+function pushToast(t,b){var el=h("div",{id:"fbpushmsg"},[h("b",{text:t}),h("div",{text:b})]);el.onclick=function(){el.remove()};document.body.appendChild(el);setTimeout(function(){el.remove()},9000)}
+function pushMsg(r){return r==="on"?"✓ Notifications are on for this device.":r==="home"?"On iPhone, first add Silong Hub to your Home Screen (Share → Add to Home Screen), then open it from that icon and tap 🔔 again.":r==="denied"?"Notifications are blocked for Silong Hub. Turn them on in your phone's Settings → Notifications → Silong Hub, then tap 🔔 again.":r==="unsupported"?"This browser can't receive notifications. On iPhone, open Silong Hub from the Home Screen icon; on Android use Chrome.":r==="default"?"Notifications not turned on.":"Couldn't turn on notifications – check the internet and try again."}
+function pushUI(f){var u=auth.currentUser;if(!u)return;
+  if(document.body.classList.contains("kiosk")||/[?&]kiosk\b/.test(location.search))return;
+  Promise.all([checkOwner(),fs.doc("access/"+u.uid).get().then(function(d){return d.exists?d.data().role:null},function(){return null})]).then(function(r){
+    var role=r[0]?"gm":r[1];if(!role||role==="kiosk"||role==="none")return;
+    var btn=h("button",{text:"🔔 Turn on notifications"}),line=h("div",{},[btn]);f.insertBefore(line,f.firstChild);
+    function show(res){if(res==="on"){btn.textContent="🔔 Notifications on ✓";btn.title="Tap to refresh this device"}}
+    btn.onclick=function(){btn.disabled=true;pushOn(true).then(function(res){btn.disabled=false;show(res);if(res==="on"&&ban)ban.remove();alert(pushMsg(res))})};
+    var granted=("Notification" in window)&&Notification.permission==="granted";
+    if(granted)pushOn(false).then(show);
+    var ban=null,dk="silong-push-later-"+u.uid,later=0;try{later=+localStorage.getItem(dk)||0}catch(e){}
+    if(!granted&&!(("Notification" in window)&&Notification.permission==="denied")&&Date.now()-later>3*864e5){
+      setTimeout(function(){ban=h("div",{id:"fbpushban"},[h("div",{text:isIOS()&&!isApp()?"🔔 To get alerts on this iPhone: Share → Add to Home Screen, then open Silong Hub from the icon.":"🔔 Get alerts for approvals and notices on this phone."}),
+        h("div",{},[isIOS()&&!isApp()?null:h("button",{class:"main",text:"Turn on",onclick:function(){ban.remove();btn.onclick()}}),h("button",{text:"Later",onclick:function(){try{localStorage.setItem(dk,String(Date.now()))}catch(e){}ban.remove()}})])]);
+        document.body.appendChild(ban)},2500)}})}
 
 // --- owner check: only the owner can read meta/gm (enforced by the security rules) ---
 var OWN=null;
@@ -511,6 +559,7 @@ function boot(){
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
   var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
+  pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
 
 // --- owner data tools: import the old Hub's export and link old accounts to new logins ---
@@ -3081,7 +3130,7 @@ async function renderGM(){
      ...W.map(r=>el("details",{class:"grp"},el("summary",{},el("b",{text:`Weekly report – week to ${fd(r.week)}`}),el("span",{class:"small",text:new Date(r.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})})),el("pre",{class:"pre",text:r.text}))),
      ...E.map(l=>el("div",{class:"mini"},"📅 ",el("b",{text:`Schedule changed ${new Date(l.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}: `}),l.why,el("div",{class:"small",text:l.items.join(" · ")}))));
    const pmRow=el("details",{class:"panel gmcat",style:"margin-top:10px"},el("summary",{},el("span",{style:"font-weight:700",text:"🏗 From the Head of PMs"}),el("span",{class:"small",style:"margin-left:auto",text:"tap to view"})));pmRow.append(pn);v.append(pmRow)}
-  const arrived=el("div",{});const holder=el("div",{});{const pr=el("details",{class:"panel gmcat"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"📁 Ongoing projects"}),el("span",{class:"small",style:"margin-left:auto",text:String(Object.keys(PROJS).length)})),holder);holder.append(el("p",{class:"empty",text:"Loading projects…"}));const cl=gmCloser(pr);pr.append(cl);gmAccordion(pr);rowsHost().before(arrived);rowsHost().append(pr)}
+  const arrived=el("div",{});const holder=el("div",{});{const pr=el("details",{class:"panel gmcat"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"📁 Ongoing projects"}),el("span",{class:"small",style:"margin-left:auto",text:String(Object.keys(PROJS).length)})),holder);holder.append(el("p",{class:"empty",text:"Loading projects…"}));const cl=gmCloser(pr);pr.append(cl);gmAccordion(pr);rowsHost().before(arrived)}
   const ARR=[];const tdA=iso(new Date());
   const ids=Object.keys(PROJS);const cards=[];
   for(const id of ids){const D=await loadProjectData(id);if(my!==RSEQ)return;const c=PROJS[id];
