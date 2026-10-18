@@ -5104,7 +5104,8 @@ async function renderHome(){
   if(["gm","head","pmc"].includes(ROLE)){const ks=Object.keys(reports).sort(cmpK).reverse().slice(0,6);
     v.append(sec("Latest site reports",CFG.name,"Tap one to read it.",el("div",{class:"panel"},...(ks.length?ks.map(k=>{const r=reports[k];const[dd,sh]=k.split("_");const bad=Object.values(r.acts||{}).filter(x=>x&&NEEDREM.includes(x.status)).length;
       return el("button",{class:"rep",style:"width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 0;cursor:pointer;color:inherit;font:inherit",onclick:()=>openSummary(k)},el("span",{},el("b",{text:`${fmt(dd,{weekday:"short",day:"numeric",month:"short"})} · ${sh==="night"?"Night":"Day"}`}),` · ${r.pm||""} · sent ${new Date(r.sentAt||0).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"numeric",minute:"2-digit"})}`),el("span",{},el("span",{class:"tag"+(bad?" due":""),text:bad?bad+" behind":"on track"}),sh==="night"?chkTag(dd):""))}):[el("div",{class:"mini empty",text:"No site reports sent yet."})]))))}
-  // projects
+  // projects (not on the GM Home – the Projects tab covers it)
+  if(ROLE==="gm")return;
   const box=el("section",{},el("h2",{},"Projects"));v.append(box);
   for(const id of Object.keys(PROJS)){const D=await loadProjectData(id);if(my!==RSEQ)return;const c=D.cfg||{};const last=statusMap(D.reports);
     if(c.type==="design"){const m=dsnMetrics(D);box.append(el("div",{class:"ptile"},el("div",{class:"gmh"},el("div",{},el("b",{class:"sumt",style:"font-size:22px",text:c.name||id}),el("div",{class:"small",text:`Design only · ${c.client||""}`})),el("button",{class:"btn",text:"Open",onclick:()=>{DP=id;dSub="deliv";switchTab("design")}})),
