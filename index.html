@@ -638,14 +638,14 @@ const diff=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
 const fmt=(s,o)=>pd(s).toLocaleDateString("en-GB",o);
 const clamp=s=>s<START?START:(s>END?END:s);
 const col=c=>P===BARN?c:"p/"+P+"/"+c;
-const ROLES={gm:"AAT-Gen Manager",head:"Head of PMs (Compliance & Submissions)",pmc:"Project Manager – Engineering / Head of Construction",pmd:"Project Manager – Design",pm:"Site Engineer",arch:"Project Architect",appr:"Architect Apprentice",hr:"HR Officer",buy:"Purchasing",acct:"Accounts",kiosk:"Attendance kiosk (wall tablet)"};
+const ROLES={gm:"AAT-Gen Manager",head:"Head of PMs (Compliance & Submissions)",pmc:"Project Manager – Engineering / Head of Construction",pmd:"Project Manager – Design",pm:"Site Engineer",sup:"Supervisor on duty",arch:"Project Architect",appr:"Architect Apprentice",hr:"HR Officer",buy:"Purchasing",acct:"Accounts",kiosk:"Attendance kiosk (wall tablet)"};
 const SCHED_EDIT=["gm","head","pmc"], REVIEWERS=["gm","head","pmc"];
 const TABS_FOR={gm:["home","proj","est","gm","hr","roster","head","design","sched","docs","report","list","mat","plan","buy","acct","recv","bill","msg","setup"],
   head:["home","head","proj","roster","design","sched","docs","report","list","mat","plan","buy","bill","msg","setup"],
   pmc:["home","head","proj","est","roster","sched","docs","report","list","mat","plan","msg","setup"],
   pmd:["home","design","report","sched","docs","list","msg"],
   arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],
-  pm:["home","report","list","sched","mat","msg"],
+  pm:["home","report","list","sched","mat","msg"],sup:["home","report","list","sched","mat","msg"],
   buy:["home","myproj","plan","buy","msg"],acct:["home","acct","recv","bill","hr","msg"],hr:["home","hr","roster","msg"],kiosk:["kiosk"]};
 // what shows in the tab bar (everything in TABS_FOR stays reachable)
 const TABS_BAR={arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],buy:["home","buy","plan","msg","myproj"],gm:["home","proj","est","buy","acct","bill","hr","msg"],acct:["home","acct","bill","hr","msg"],
@@ -4703,6 +4703,33 @@ async function renderDesignProjects(){const my=++RSEQ;const v=$("#view");v.repla
     v.append(d)});
   if(!lead&&!rows.some(r=>r.mine.length))v.append(el("p",{class:"empty",text:"Nothing is assigned to you yet. The AAT-Gen Manager or Arch. Joma assigns walls in Design → Floor plan & walls."}))}
 
+// ---------- Attendance selfies: delete after the pay period (45 days). Times, places and records stay. ----------
+const PHOTO_KEEP_DAYS=45;
+const PH_KEYS=["in","out","lunchOut","lunchIn","travelStart","travelEnd","moveStart","arrive","dropOff","back"],PH_LISTS=["checks","moves","gaps","inRedo"];
+function photoIdsOf(x){const ids=[];const take=o=>{if(o&&o.photo&&typeof o.photo==="string"){ids.push(o.photo)}};PH_KEYS.forEach(k=>take(x[k]));PH_LISTS.forEach(k=>(x[k]||[]).forEach(take));return ids}
+function stripPhotos(x){const y={...x};const clr=o=>o&&o.photo?{...o,photo:"",photoGone:true}:o;PH_KEYS.forEach(k=>{if(y[k])y[k]=clr(y[k])});PH_LISTS.forEach(k=>{if(Array.isArray(y[k]))y[k]=y[k].map(clr)});y.photosCleared=Date.now();return y}
+async function delAttach(id){try{const d=await db.collection("attach").doc(id).get();const a=d.exists?d.data():null;if(a&&a.chunks)for(let i=0;i<a.chunks;i++){try{await db.collection("attachc").doc(id+"_"+i).delete()}catch(e){}}if(d.exists)await db.collection("attach").doc(id).delete()}catch(e){}}
+async function photoCleanup(force){if(!db||!["gm","hr"].includes(ROLE))return;const td=iso(new Date());try{if(!force&&localStorage.getItem("silong-photoclean")===td)return;localStorage.setItem("silong-photoclean",td)}catch(e){}
+  const cut=addD(td,-PHOTO_KEEP_DAYS);let docs=0,photos=0,budget=120;
+  const run=async(cname)=>{let q;try{q=await db.collection(cname).where("date","<",cut).get()}catch(e){return}
+    for(const d of q.docs){if(budget<=0)return;const x=d.data();if(!x||x.photosCleared)continue;const ids=photoIdsOf(x);budget--;for(const id of ids){await delAttach(id);photos++}
+      try{await db.collection(cname).doc(d.id).set(stripPhotos(x))}catch(e){}docs++}};
+  await run("punch");await run("duty");for(const pid of Object.keys(PROJS||{}))await run(pid===BARN?"checkins":"p/"+pid+"/checkins");
+  if(force)toast(photos?`Deleted ${photos} old selfie${photos>1?"s":""} from ${docs} record${docs>1?"s":""}. Times and records kept.`:"No selfies older than "+PHOTO_KEEP_DAYS+" days to delete.");return {docs,photos}}
+
+// ---------- HR: confirm mistaken time-outs ----------
+function gapCard(){if(!db||!["gm","hr"].includes(ROLE))return null;const L=[];
+  Object.entries(PUNCH||{}).forEach(([id,x])=>{if(!x||x.test)return;(x.gaps||[]).forEach((g,i)=>{if(g.ok==null)L.push({id,x,g,i})})});
+  if(!L.length)return null;L.sort((a,b)=>b.g.to-a.g.to);
+  const c=el("div",{class:"panel attn",style:"margin:10px 0"},el("b",{text:`⏱ Mistaken time-outs to confirm (${L.length})`}),el("div",{class:"small",text:"The time in between is paid until you decide. Check the selfies: were they still at work?"}));
+  L.forEach(({id,x,g,i})=>{const mins=Math.round((g.to-g.from)/6e4);const row=el("div",{class:"item",style:"margin-top:8px"},
+      el("div",{},el("b",{text:x.name||x.sid}),` · ${fd(x.date)}`),
+      el("div",{class:"small",text:`Timed out ${tm(g.from)} at ${g.outLoc||"?"} → timed in again ${tm(g.to)} at ${g.loc||"?"} (${mins} min)`}),
+      el("div",{class:"opts tight"},g.outPhoto?el("button",{class:"btn",style:"padding:2px 8px",text:"📷 time-out selfie",onclick:()=>openAttach(g.outPhoto)}):"",g.photo?el("button",{class:"btn",style:"padding:2px 8px",text:"📷 time-in-again selfie",onclick:()=>openAttach(g.photo)}):""));
+    const set=async ok=>{try{const d=await db.collection("punch").doc(id).get();const cur=d.data()||{};const G=[...(cur.gaps||[])];if(G[i])G[i]={...G[i],ok,by:ME,byName:myName(),okAt:Date.now()};await db.collection("punch").doc(id).set({...cur,gaps:G});PUNCH[id]={...cur,gaps:G};toast(ok?`Paid – ${mins} min kept.`:`Not paid – ${mins} min removed.`);renderHome()}catch(e){toast("Not saved.")}};
+    row.append(el("div",{class:"opts"},el("button",{class:"btn main",text:"✓ Was still working – pay",onclick:()=>set(true)}),el("button",{class:"btn",text:"✗ Not working – don't pay",onclick:()=>set(false)})));c.append(row)});
+  return c}
+
 function delivView(S){
   const out=[];const td=iso(new Date());const can=["gm","head","pmd","arch"].includes(ROLE);
   S.phases.forEach(ph=>{const box=el("div",{});
@@ -6048,9 +6075,9 @@ async function renderHome(){
   const nm=(NAMES[ME]||(ACCESS[ME]||{}).name||"").split(" ")[0];
   v.append(el("div",{class:"hello"},el("div",{class:"t",text:`Good ${new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening"}${ROLE==="gm"?", AAT-Gen Manager":nm?", "+nm:""}`}),el("div",{class:"s",text:`${ROLES[ROLE]} · ${fmt(td,{weekday:"long",day:"numeric",month:"long"})}`})));
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to see your dashboard."}));return}
-  {const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
+  {const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const gpc=gapCard();if(gpc)v.append(gpc);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
   {const dh=designHomeCard();if(dh)v.append(dh)}
-  if(["gm","head","pmc","pmd","pm","hr"].includes(ROLE)){const wb=whereBoard();if(wb)v.append(wb)}
+  if(["gm","head","pmc","pmd","pm","sup","hr"].includes(ROLE)){const wb=whereBoard();if(wb)v.append(wb)}
   {const pc=planCard();if(pc)v.append(pc)}
   if(["gm","acct"].includes(ROLE)){const P_=cashPosition();const goCash=()=>{acctSub="cash";switchTab("acct")};
     const BG=bankGrid(P_,goCash);
@@ -6068,7 +6095,7 @@ async function renderHome(){
   if(["gm","head","pmc"].includes(ROLE)){const H=headUrgent();K_.push([H.length,"oversight items","head",H.length])}
   if(ROLE==="gm"){const ask=Object.keys(PEOPLE).filter(i=>!ACCESS[i]&&i!==ME).length;K_.push([ask,"people asking for access","gm",ask])}
   if(ROLE==="gm"){const pend=pendGroups().length+allReqs().filter(r=>["open","endorsed"].includes(REQST[r.id]||"open")).length+pdcList("company").filter(c=>c.status==="forsign").length;K_.push([pend,"waiting for your approval","gm",pend])}
-  if(["pm"].includes(ROLE)){const sent=shiftsFor(td).filter(x=>reports[K(td,x.k)]).length,tot=shiftsFor(td).length;K_.push([`${sent}/${tot}`,"shift reports sent today","report",sent<tot]);
+  if(["pm","sup"].includes(ROLE)){const sent=shiftsFor(td).filter(x=>reports[K(td,x.k)]).length,tot=shiftsFor(td).length;K_.push([`${sent}/${tot}`,"shift reports sent today","report",sent<tot]);
     const D_=DUE(td).length;K_.push([D_,"deliveries due today","mat",0]);
     const fb=Object.values(reports).filter(r=>r.review&&r.review.status==="action").length;K_.push([fb,"reports needing action","list",fb])}
   if(["head","pmc","pmd","gm"].includes(ROLE)){const du=docUrgent(DOCS,td).length;K_.push([du,"documents due or overdue","docs",du])}
@@ -6139,7 +6166,7 @@ const chkId=(d,u)=>d+"_"+u;
 const onRoster=(d,u)=>((ROSTER[d]||{}).uids||[]).includes(u)||!!(((CHK[d+"_"+u]||{}).checks||[]).length); // no advance assignment needed: checking in on the night counts
 const pname=u=>(ACCESS[u]||{}).name||NAMES[u]||"Someone";
 function blockState(b,doc){const C=((doc&&doc.checks)||[]).filter(c=>c.at>=b.from-15*60e3&&c.at<b.to);
-  if(C.some(c=>c.onsite===true||((c.photoOk||c.nogps)&&c.photo)))return "ok";if(C.length)return "flag";return Date.now()>b.to?"miss":Date.now()>=b.from?"due":"later"}
+  if(C.some(c=>c.onsite===true||((c.photoOk||c.nogps)&&(c.photo||c.photoGone))))return "ok";if(C.length)return "flag";return Date.now()>b.to?"miss":Date.now()>=b.from?"due":"later"}
 function shiftResult(w,u){const doc=CHK[chkId(w.d,u)];const S=blocksOf(w).map(b=>blockState(b,doc));
   const done=Date.now()>w.end;const ok=S.every(s=>s==="ok");const ros=onRoster(w.d,u);
   const why=[];if(S.includes("miss"))why.push(S.filter(s=>s==="miss").length+" missed check"+(S.filter(s=>s==="miss").length>1?"s":""));if(S.includes("flag"))why.push("off-site or no GPS on "+S.filter(s=>s==="flag").length);
@@ -6230,7 +6257,7 @@ setInterval(()=>{try{if(!db||!ME)return;const w=activeNight();if(!w)return;if(!o
 
 // ---------- DAY FIELD CHECK-INS + END-OF-SHIFT REPORTS (sent to HR) ----------
 let DUTY={},DUTYDATE=null;
-const DAY_FIELD=["pm","pmd","pmc"];                      // must check in on day duty
+const DAY_FIELD=["pm","sup","pmd","pmc"];                      // must check in on day duty
 const DAY_START=()=>+((HRSET&&HRSET.dayStart)||8),DAY_END=()=>+((HRSET&&HRSET.dayEnd)||17);
 const dutyId=(d,u,k)=>d+"_"+u+"_"+k;
 const myName=()=>(ACCESS[ME]||{}).name||NAMES[ME]||"";
@@ -6349,12 +6376,14 @@ async function savePunch(p){ // p={sid,kind,at,data,loc}
   const photo=p.photo||await saveAttachment({name:p.kind+".jpg",type:"image/jpeg",data:p.data});const d=p.date||iso(new Date(p.at));const id=d+"_"+p.sid;const s=STAFF[p.sid]||{};
   const prev=(await db.collection("punch").doc(id).get().catch(()=>null));const pv=prev&&prev.exists?prev.data():{};
   const rec={...pv,date:d,sid:p.sid,name:s.name||"",loc:p.loc,updatedAt:Date.now()};if(p.test)rec.test=true;
-  if(p.kind==="in"){if(!pv.in)rec.in={at:p.at,photo,loc:p.loc}}else if(p.kind==="check"){rec.checks=[...(pv.checks||[]),{at:p.at,photo,loc:p.loc}]}else if(["lunchOut","lunchIn","travelStart","travelEnd","moveStart","arrive","dropOff","back"].includes(p.kind)){if(!pv[p.kind]||p.kind==="travelEnd"||p.kind==="back")rec[p.kind]={at:p.at,photo,loc:p.loc,...(p.by?{by:p.by,byName:p.byName||"",group:p.group||0}:{})}}else if(p.kind==="resume"){if(pv.out){rec.gaps=[...(pv.gaps||[]),{from:pv.out.at,to:p.at,photo,loc:p.loc}];delete rec.out}}else if(p.kind==="out")rec.out={at:p.at,photo,loc:p.loc};if(["moveStart","arrive"].includes(p.kind))rec.moves=[...(pv.moves||[]),{k:p.kind,at:p.at,loc:p.loc,photo}];if(p.mode)rec.mode=p.mode;
+  if(p.kind==="in"){if(!pv.in)rec.in={at:p.at,photo,loc:p.loc}}else if(p.kind==="redoIn"){if(pv.in)rec.inRedo=[...(pv.inRedo||[]),{...pv.in,replacedAt:p.at,why:p.why||""}];rec.in={at:p.at,photo,loc:p.loc,redo:true};rec.assigns=(pv.assigns||[]).filter(a=>a.how!=="in");if(/^Site/.test(p.loc||""))rec.assigns.push({to:p.loc,at:p.at,how:"in"})}else if(p.kind==="check"){rec.checks=[...(pv.checks||[]),{at:p.at,photo,loc:p.loc}]}else if(["lunchOut","lunchIn","travelStart","travelEnd","moveStart","arrive","dropOff","back"].includes(p.kind)){if(!pv[p.kind]||p.kind==="travelEnd"||p.kind==="back")rec[p.kind]={at:p.at,photo,loc:p.loc,...(p.by?{by:p.by,byName:p.byName||"",group:p.group||0}:{})}}else if(p.kind==="resume"){if(pv.out){rec.gaps=[...(pv.gaps||[]),{from:pv.out.at,to:p.at,photo,loc:p.loc,outLoc:pv.out.loc||"",outPhoto:pv.out.photo||"",ok:null}];delete rec.out;
+    try{await db.collection("messages").doc("m"+Date.now()+"g").set({project:P,projName:"Attendance",type:"update",to:"hr",from:"kiosk",fromId:"",subject:`Timed out by mistake – ${s.name||p.sid}`,body:`Timed out ${tm(pv.out.at)} at ${pv.out.loc||"?"}, timed in again ${tm(p.at)} at ${p.loc||"?"}. Paid until you confirm – check the selfies on your Home (Mistaken time-outs).`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(e){}}}else if(p.kind==="out")rec.out={at:p.at,photo,loc:p.loc};if(["moveStart","arrive"].includes(p.kind))rec.moves=[...(pv.moves||[]),{k:p.kind,at:p.at,loc:p.loc,photo}];if(p.mode)rec.mode=p.mode;
   if((p.kind==="in"&&!pv.in&&/^Site/.test(p.loc||""))||["arrive","back"].includes(p.kind)||(p.by&&["travelStart","moveStart","dropOff"].includes(p.kind)))rec.assigns=[...(pv.assigns||[]),{to:p.loc,at:p.at,how:p.kind}];
   await db.collection("punch").doc(id).set(rec);
   const ad=ATTEND[id];
   if(p.kind==="dropOff"&&!pv.in&&hm(p.at)>="16:00"&&!(ad&&ad.status))await db.collection("attend").doc(id).set({status:"present",time:"",timeIn:pv.travelStart?hm(pv.travelStart.at):hm(p.at),note:(p.test?"TEST · ":"")+"Travel day – arrived in the area after 4 PM, went to lodging (paid to 5 PM)",informed:false,at:Date.now(),by:"kiosk",...(p.test?{test:true}:{})});
-  if(p.kind==="in"&&!pv.in){if(!ad||!ad.status){let st0=schedStart(p.sid);try{const uu=(STAFF[p.sid]||{}).uid;const R_=uu&&ROSTERS[monOf(d)];const rc=R_&&R_.status==="sent"&&rParse(((R_.cells||{})[uu]||{})[d]);if(rc&&rc.s)st0=rc.s}catch(e){}const late=hm(pv.travelStart?pv.travelStart.at:p.at)>hmAdd(st0,pv.travelStart?0:kGrace(p.loc));await db.collection("attend").doc(id).set({status:late?"late":"present",time:late?hm(p.at):"",timeIn:hm(p.at),note:(p.test?"TEST · ":"")+"Kiosk – "+p.loc,informed:false,at:Date.now(),by:"kiosk",...(p.test?{test:true}:{})})}
+  if(p.kind==="redoIn"){try{await db.collection("messages").doc("m"+Date.now()+"r").set({project:P,projName:"Attendance",type:"update",to:"hr",from:"kiosk",fromId:"",subject:`Time in redone – ${s.name||p.sid}`,body:`Was ${pv.in?tm(pv.in.at)+" at "+(pv.in.loc||"?"):"none"} → now ${tm(p.at)} at ${p.loc||"?"}.${p.why?"\nReason: "+p.why:""}`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(e){}}
+  if((p.kind==="in"&&!pv.in)||p.kind==="redoIn"){if(!ad||!ad.status||p.kind==="redoIn"){let st0=schedStart(p.sid);try{const uu=(STAFF[p.sid]||{}).uid;const R_=uu&&ROSTERS[monOf(d)];const rc=R_&&R_.status==="sent"&&rParse(((R_.cells||{})[uu]||{})[d]);if(rc&&rc.s)st0=rc.s}catch(e){}const late=hm(pv.travelStart?pv.travelStart.at:p.at)>hmAdd(st0,pv.travelStart?0:kGrace(p.loc));await db.collection("attend").doc(id).set({status:late?"late":"present",time:late?hm(p.at):"",timeIn:hm(p.at),note:(p.test?"TEST · ":"")+"Kiosk – "+p.loc+(p.kind==="redoIn"?" (time in redone)":""),informed:false,at:Date.now(),by:"kiosk",...(p.test?{test:true}:{})})}
     else await db.collection("attend").doc(id).set({...ad,timeIn:hm(p.at)})}
   if(p.kind==="out"&&ad)await db.collection("attend").doc(id).set({...ad,timeOut:hm(p.at)});
   if(p.kind==="resume"&&ad)await db.collection("attend").doc(id).set({...ad,timeOut:""})}
@@ -6362,7 +6391,7 @@ async function flushKq(){const q=kq();if(!q.length||!db)return;const left=[];for
 setInterval(()=>{if(isKiosk())flushKq()},30000);window.addEventListener("online",()=>{if(isKiosk())flushKq()});
 function kioskIdle(){clearTimeout(KIDLE);KIDLE=setTimeout(()=>{KSEL=null;renderKiosk()},60000)}
 function kMode(){try{const m=localStorage.getItem("silong-kiosk-mode");if(m)return m}catch(e){}return /^Site/i.test(kLoc()||"")?"split":"simple"}
-const KLAB={in:"TIME IN",lunchOut:"LUNCH OUT",lunchIn:"BACK FROM LUNCH",out:"TIME OUT",travelStart:"TRAVEL START",travelEnd:"TRAVEL END",moveStart:"LEFT FOR SITE",arrive:"ARRIVED AT SITE",dropOff:"GOT OFF / ARRIVED IN AREA",back:"BACK AT OFFICE",resume:"TIME IN AGAIN"};
+const KLAB={in:"TIME IN",lunchOut:"LUNCH OUT",lunchIn:"BACK FROM LUNCH",out:"TIME OUT",travelStart:"TRAVEL START",travelEnd:"TRAVEL END",moveStart:"LEFT FOR SITE",arrive:"ARRIVED AT SITE",dropOff:"GOT OFF / ARRIVED IN AREA",back:"BACK AT OFFICE",resume:"TIME IN AGAIN",redoIn:"TIME IN (REDONE)"};
 let APLAN={};const PLAN_ROLES=["gm","head","pmc","pmd"];
 function planNextWD(d){let x=addD(d,1);while([0,6].includes(pd(x).getDay()))x=addD(x,1);return x}
 function planDeadline(d){let x=addD(d,-1);while([0,6].includes(pd(x).getDay()))x=addD(x,-1);const t=pd(x);t.setHours(17,0,0,0);return +t}
@@ -6554,7 +6583,7 @@ function renderKiosk(){RSEQ++;tab="kiosk";const v=$("#view");v.replaceChildren()
       out.textContent="Saving…";const at=Date.now();let data="";try{data=await compress(file,`${KLAB[kind]||kind} · ${s.name} · ${curLoc()} · ${new Date(at).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}`)}catch(e){out.textContent="Photo problem – try again.";return}
       const rec={sid,kind,at,data,loc:curLoc(),mode:modeNow()};if(openNight)rec.date=td;if(KTEST)rec.test=true;try{await savePunch(rec);out.textContent=""}catch(e){kqSet([...kq(),rec])}
       toast(`${(KLAB[kind]||kind).toLowerCase().replace(/^./,c=>c.toUpperCase())} ${tm(at)} – ${s.name.split(" ")[0]}`);
-      if(((kind==="in"&&!/^Site/.test(rec.loc||""))||kind==="moveStart")&&!/driver/i.test(s.position||"")){window.KASK={sid,at:Date.now(),kind};window.KOK={sid,at:Date.now()};setTimeout(renderKiosk,50);return}
+      if((((kind==="in"||kind==="redoIn")&&!/^Site/.test(rec.loc||""))||kind==="moveStart")&&!/driver/i.test(s.position||"")){window.KASK={sid,at:Date.now(),kind};window.KOK={sid,at:Date.now()};setTimeout(renderKiosk,50);return}
       window.KOK=null;KSEL=null;setTimeout(renderKiosk,50)}};
   const locSel=el("select",{class:"fin",style:"font-size:18px;padding:10px","aria-label":"Where are you?"},...[...new Set([kLoc(),...KLOCS()])].filter(Boolean).map(x=>el("option",{value:x,text:x})));
   try{const lw=localStorage.getItem("silong-kiosk-lastloc");locSel.value=lw&&[...locSel.options].some(o=>o.value===lw)?lw:kLoc()}catch(e){locSel.value=kLoc()}
@@ -6569,10 +6598,10 @@ function renderKiosk(){RSEQ++;tab="kiosk";const v=$("#view");v.replaceChildren()
       if(!has("in")&&has("dropOff")){B.push(...kDropMsg(p,pend));if(!kLateDrop(p,pend))B.push(shot("🟢 TIME IN – at site (selfie)","in",true))}
       else if(!has("in")){B.push(shot("🟢 TIME IN – at site (selfie)","in",true));if(!has("travelStart"))B.push(optTravel("🚌 Travelling to site today? Tap here","🚌 TRAVEL START – leaving for site (selfie)","travelStart"))}
       else if(trv&&!has("out")){B.push(shot((kIsBase(curLoc())?"🏢 ARRIVED BACK AT OFFICE / WAREHOUSE (selfie)":"📍 ARRIVED AT SITE (selfie)"),"arrive",true));B.push(el("div",{class:"small",style:"margin-top:6px",text:"Too late to work on arrival? Tap Arrived first, then Time out."}));B.push(shot("🔴 TIME OUT (selfie)","out",false))}
-      else if(!has("lunchOut")&&!has("out")){B.push(shot("🍽 LUNCH OUT (selfie)","lunchOut",true));B.push(shot("🔴 TIME OUT (selfie)","out",false));if(!trv)B.push(optTravel("🚌 Leaving for another place now? Tap here","🚌 LEAVING NOW – going to another place (selfie)","moveStart"))}
+      else if(!has("lunchOut")&&!has("out")){B.push(shot("🍽 LUNCH OUT (selfie)","lunchOut",true));B.push(shot("🔴 TIME OUT (selfie)","out",false));if(!trv)B.push(optTravel("🚌 Leaving for another place now? Tap here","🚌 LEAVING NOW – going to another place (selfie)","moveStart"));B.push(optTravel("Timed in at the wrong project or by mistake? Tap here","🟢 TIME IN AGAIN – here (selfie)","redoIn","Only if you timed in at the wrong project or place, or by mistake. This becomes your official time in – the first one is kept for HR."))}
       else if(has("lunchOut")&&!has("lunchIn")&&!has("out"))B.push(shot("🟢 BACK FROM LUNCH (selfie)","lunchIn",true));
       else if(!has("out")){B.push(shot("🔴 TIME OUT (selfie)","out",true));if(!trv)B.push(optTravel("🚌 Leaving for another place now? Tap here","🚌 LEAVING NOW – going to another place (selfie)","moveStart"))}
-      else{B.push(shot("🔴 UPDATE TIME OUT (selfie)","out",false));if(!isNightP)B.push(optTravel("Timed out by mistake? Tap here","🟢 TIME IN AGAIN (selfie)","resume","Only if you timed out by mistake and are still working. The time in between is not paid."));if(!has("travelEnd"))B.push(optTravel("🚌 Travelling home after work? Tap here","🏁 TRAVEL END – arrived back (selfie)","travelEnd"))}
+      else{B.push(shot("🔴 UPDATE TIME OUT (selfie)","out",false));if(!isNightP)B.push(optTravel("Timed out by mistake? Tap here","🟢 TIME IN AGAIN (selfie)","resume","Only if you timed out by mistake and are still working. The time in between stays paid – HR will check the selfies and confirm."));if(!has("travelEnd"))B.push(optTravel("🚌 Travelling home after work? Tap here","🏁 TRAVEL END – arrived back (selfie)","travelEnd"))}
       return B})():(()=>{const hasT=k=>p[k]||pend.some(x=>x.kind===k);const B=[];const asg=kAsg(p);
       if(hasIn&&asg)B.push(el("div",{style:"margin-top:8px;font-size:18px;font-weight:700",text:`📌 Assigned: ${kAsgText(asg)} (since ${tm(asg.at)})`}));
       if(hasIn&&!hasOut&&!asg)B.push(el("button",{class:"btn",style:"display:block;width:100%;font-size:20px;font-weight:700;padding:14px;margin-top:8px;border:3px solid var(--late,#c0392b)",text:"📌 No assignment yet – tap to choose where & how long",onclick:()=>{window.KASK={sid,at:Date.now()};window.KOK={sid,at:Date.now()};renderKiosk()}}));
@@ -6582,7 +6611,8 @@ function renderKiosk(){RSEQ++;tab="kiosk";const v=$("#view");v.replaceChildren()
       if(!hasIn&&hasT("dropOff")){B.push(...kDropMsg(p,pend));if(kLateDrop(p,pend))return B}
       B.push(!hasIn?shot("🟢 TIME IN (selfie)","in",true):shot("🔴 TIME OUT (selfie)","out",!hasOut&&!isNightP&&!trv&&!(asg&&!kIsBase(asg.to)&&kIsBase(curLoc()))));
       if(hasIn&&!hasOut&&!trv&&!isNightP)B.push(optTravel("🚌 Leaving for another place now? Tap here","🚌 LEAVING NOW – going to another place (selfie)","moveStart"));
-      if(hasIn&&hasOut&&!isNightP)B.push(optTravel("Timed out by mistake? Tap here","🟢 TIME IN AGAIN (selfie)","resume","Only if you timed out by mistake and are still working. The time in between is not paid."));
+      if(hasIn&&!hasOut&&!isNightP)B.push(optTravel("Timed in at the wrong project or by mistake? Tap here","🟢 TIME IN AGAIN – here (selfie)","redoIn","Only if you timed in at the wrong project or place, or by mistake. This becomes your official time in – the first one is kept for HR."));
+      if(hasIn&&hasOut&&!isNightP)B.push(optTravel("Timed out by mistake? Tap here","🟢 TIME IN AGAIN (selfie)","resume","Only if you timed out by mistake and are still working. The time in between stays paid – HR will check the selfies and confirm."));
       if(!hasIn&&!hasT("travelStart"))B.push(optTravel("🚌 Travelling to site today? Tap here","🚌 TRAVEL START – leaving for site (selfie)","travelStart"));
       if(hasOut&&!hasT("travelEnd"))B.push(optTravel("🚌 Travelling home after work? Tap here","🏁 TRAVEL END – arrived back (selfie)","travelEnd"));
       if(hasT("travelEnd"))B.push(el("div",{class:"small",style:"margin-top:6px",text:`🏁 Travel ended ${p.travelEnd?tm(p.travelEnd.at):"(saving)"}`}));return B})()),
@@ -6892,7 +6922,7 @@ function ot_dayRecord(sid,d){const st=STAFF[sid]||{};const u=st.uid;const out=[]
   else if(pu&&!pu.test&&pu.in&&pu.out&&pu.moveStart&&pu.arrive&&hm(pu.arrive.at)>="16:00"&&hm(pu.out.at)<"17:00"&&pu.out.at-pu.arrive.at<45*6e4){const f5=pd(d);f5.setHours(17,0,0,0);pu={...pu,out:{...pu.out,at:+f5}};trNote=`🚐 arrived at site ${tm(pu.arrive.at)} (after 4 PM) – day ended, paid to 5:00 PM`}
   if(pu&&pu.dropOff&&pu.in&&!trNote&&pu.in.at-pu.dropOff.at>60*6e4)trNote=`⚠ ${Math.round((pu.in.at-pu.dropOff.at)/6e4)} min from getting off the bus (${tm(pu.dropOff.at)}) to time in at site`;
   if(pu&&pu.dropOff&&!trNote)trNote=`🚏 got off ${tm(pu.dropOff.at)}${pu.dropOff.byName?" (group, by "+pu.dropOff.byName+")":""}`;
-  if(pu&&pu.gaps&&pu.gaps.length)trNote+=(trNote?" · ":"")+`timed out by mistake, timed in again (${pu.gaps.map(g=>tm(g.from)+"–"+tm(g.to)).join(", ")} not paid)`;
+  if(pu&&pu.gaps&&pu.gaps.length)trNote+=(trNote?" · ":"")+`timed out by mistake, timed in again (${pu.gaps.map(g=>tm(g.from)+"–"+tm(g.to)+(g.ok===false?" not paid – HR":g.ok===true?" paid – HR confirmed":" paid – waiting for HR")).join(", ")})`;
   if(pu&&!pu.test&&pu.in&&!pu.travelStart&&new Date(pu.in.at).getHours()<16){try{const st_=kShift(sid,d).s;const t0=pd(d);t0.setHours(+st_.slice(0,2),+st_.slice(3),0,0);if(pu.in.at>+t0&&hm(pu.in.at)<=hmAdd(st_,kGrace(pu.in.loc))){trNote+=(trNote?" · ":"")+`in ${tm(pu.in.at)} – within ${kGrace(pu.in.loc)}-min grace, paid from ${tm(+t0)}`;pu={...pu,in:{...pu.in,at:+t0}}}}catch(e){}}
   if(pu&&pu.in&&!pu.test){puNight=new Date(pu.in.at).getHours()>=16;let last=null;if(!pu.out&&u){const x=DUTY[dutyId(d,u,puNight?"night":"day")];const C=puNight?((CHK[chkId(d,u)]||{}).checks||[]):((x&&x.checks)||[]);if(C.length)last=C[C.length-1].at}
     let wk=null,tr=0,lunchNote="";if(pu.out&&pu.lunchOut&&pu.lunchIn){wk=((pu.lunchOut.at-pu.in.at)+(pu.out.at-pu.lunchIn.at))/36e5;const li=hm(pu.lunchIn.at),lo=hm(pu.lunchOut.at);if(li>"13:00")lunchNote+=`back from lunch late (${tm(pu.lunchIn.at)})`;if(lo<"12:00")lunchNote+=(lunchNote?" · ":"")+`lunch out early (${tm(pu.lunchOut.at)})`}
@@ -6902,7 +6932,7 @@ function ot_dayRecord(sid,d){const st=STAFF[sid]||{};const u=st.uid;const out=[]
   else if(pu&&!pu.in&&pu.out&&!pu.test)out.push({kind:"day",src:"time in/out",a:pu.out.at,b:pu.out.at,punch:d+"_"+sid,noTimeIn:true})
   else if(u){const x=DUTY[dutyId(d,u,"day")];if(x&&x.checks&&x.checks.length)out.push({kind:"day",src:"check-ins",a:x.checks[0].at,b:x.out?x.out.at:null,last:x.checks[x.checks.length-1].at})}
   if(u){const C=((CHK[chkId(d,u)]||{}).checks||[]);if(C.length){let ok=false;try{const w=nightWin(d);ok=w?shiftResult(w,u).S.every(z=>z==="ok"):false}catch(e){}const pn=out.find(r=>r.kind==="night");if(!pn){let b_=C[C.length-1].at;try{const w=nightWin(d);if(w&&b_>=w.end-36e5&&b_<w.end)b_=w.end}catch(e){}out.push({kind:"night",src:"night check-ins",a:C[0].at,b:b_})}}}
-  return out.map(r=>{const end=r.b||r.last||r.a;const span=(end-r.a)/36e5;const gp=(r.punch&&PUNCH[r.punch]&&PUNCH[r.punch].gaps)||[];const gapH=gp.reduce((t,g)=>t+Math.max(0,g.to-g.from),0)/36e5;const worked=Math.max(0,(r.wk!=null?Math.max(0,r.wk):Math.max(0,span>5?span-1:span))-gapH);const cls=ot_payClassOf(sid);
+  return out.map(r=>{const end=r.b||r.last||r.a;const span=(end-r.a)/36e5;const gp=(r.punch&&PUNCH[r.punch]&&PUNCH[r.punch].gaps)||[];const gapH=gp.filter(g=>g.ok===false).reduce((t,g)=>t+Math.max(0,g.to-g.from),0)/36e5;const worked=Math.max(0,(r.wk!=null?Math.max(0,r.wk):Math.max(0,span>5?span-1:span))-gapH);const cls=ot_payClassOf(sid);
     const ot=cls==="rank"?Math.floor(Math.max(0,worked-8)*2)/2:0;const nd=cls==="rank"?Math.round(ot_ndHours(r.a,end)*2)/2:0;const ut=r.kind==="day"&&cls==="rank"&&worked<8&&r.b?Math.round((8-worked)*2)/2:0;
     const key=`${d}_${sid}_${r.kind}`;let ap=OTAPP[key];if(!ap&&ot>0&&cls==="rank"){const rc=st.uid?rosterCode(d,st.uid):null;const rost=rc&&(r.kind==="day"?["D","DN"]:["N","DN"]).includes(rc);if(rost||st.otAuto)ap={status:"approved",hrs:ot,byName:rost?"roster (automatic)":"automatic (staff setting)",auto:true}}return {...r,d,sid,end,worked:Math.round(worked*10)/10,ot,nd,ut,cls,key,ap,noOut:!r.b,incomplete:!!(r.noTimeOut||r.noTimeIn),verified:r.kind==="night"?worked>=7.99:false}})}
 function ot_otPending(){const td=iso(new Date());const R=[];Object.keys(STAFF).forEach(sid=>{for(let i=0;i<20;i++){const d=addD(td,-i);ot_dayRecord(sid,d).forEach(r=>{if(r.ot>0&&!r.ap)R.push(r)})}});return R}
@@ -7012,7 +7042,7 @@ function memosView(){const box=el("div",{});const canW=["hr","gm","head"].includ
     box.append(el("div",{class:"panel",style:"margin-top:6px;cursor:pointer",onclick:()=>{memoOpen=id;renderHR()}},el("div",{style:"display:flex;justify-content:space-between;gap:8px"},el("b",{text:`${m.no} – ${m.subject}`}),ack?el("span",{class:"tag",text:ack}):""),el("div",{class:"small",text:`${fd(m.date)} · to ${memoToText(m)} · from ${m.fromLab}`})))});
   return box}
 // ---------- MY TIME IN / OUT (personal kiosk for PMs and Site Engineers until site tablets are set up) ----------
-const MYKIOSK_ROLES=["pm","pmc","pmd","head"];
+const MYKIOSK_ROLES=["pm","sup","pmc","pmd","head"];
 function myKioskCard(){if(!db||!ME||!MYKIOSK_ROLES.includes(ROLE))return null;const sid=(Object.entries(STAFF).find(([,s])=>s.uid===ME)||[])[0]||sidOfUid(ME);
   const card=el("div",{class:"panel",style:"margin-top:12px"},el("b",{text:"🕘 Time in / Time out"}));
   if(!sid){card.append(el("div",{class:"small",text:"Your Silong Hub account isn't linked to your staff record yet. Ask HR to link it (HR → Staff → your name → Silong Hub account)."}));return card}
@@ -7030,15 +7060,20 @@ function myKioskCard(){if(!db||!ME||!MYKIOSK_ROLES.includes(ROLE))return null;co
     const go_=async(kind,btn)=>{const f=ph.files[0];if(!f){out.textContent="📷 Take a selfie first (front camera).";return}
       if(f.lastModified&&Date.now()-f.lastModified>15*60000){out.textContent="⚠ That photo was taken more than 15 minutes ago. Take a new selfie.";return}
       btn.disabled=true;out.textContent="Saving…";const t=Date.now();
-      try{const data=await compress(f,`TIME ${kind==="in"?"IN":"OUT"} · ${(STAFF[sid]||{}).name||myName()} · ${loc.value} · ${new Date(t).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}`);
-        await savePunch({sid,kind,at:t,data,loc:loc.value,date:kind==="out"?rd:td});toast(kind==="in"?`Timed in at ${tm(t)}.`:`Timed out at ${tm(t)}.`);renderHome()}
+      try{const data=await compress(f,`TIME ${kind==="out"?"OUT":kind==="redoIn"?"IN (redone)":"IN"} · ${(STAFF[sid]||{}).name||myName()} · ${loc.value} · ${new Date(t).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}`);
+        await savePunch({sid,kind,at:t,data,loc:loc.value,date:kind==="out"?rd:td,why:go_.why||""});
+        if(kind==="redoIn"){try{await poMsg("hr",`Time in redone – ${(STAFF[sid]||{}).name||myName()}`,`Was ${tm(T.in.at)} at ${T.in.loc||"?"} → now ${tm(t)} at ${loc.value}.\nReason: ${go_.why||""}`,"company")}catch(_){}}
+        toast(kind==="out"?`Timed out at ${tm(t)}.`:kind==="redoIn"?`Time in redone – now ${tm(t)} at ${loc.value}. HR can see the change.`:`Timed in at ${tm(t)}.`);renderHome()}
       catch(e){out.textContent="Not saved – check the signal and try again.";btn.disabled=false}};
     const canIn=!T.in&&!openY,canOut=(R.in&&!R.out)||(R.in&&R.out);
     card.append(el("div",{class:"form",style:"margin-top:6px"},el("label",{class:"small lbl"},el("span",{text:"Where are you?"}),loc),el("label",{class:"small lbl"},el("span",{text:"Selfie (front camera)"}),ph)));
     const row=el("div",{class:"opts"});
     if(canIn){const b=el("button",{class:"btn main",style:"flex:1;font-size:18px;padding:12px",text:"🟢 Time in"});b.onclick=()=>go_("in",b);row.append(b)}
     if(R.in){const b=el("button",{class:R.out?"btn":"btn main",style:"flex:1;font-size:18px;padding:12px",text:R.out?"🔴 Update time out":"🔴 Time out"});b.onclick=()=>go_("out",b);row.append(b)}
-    card.append(row,out,el("div",{class:"small",style:"margin-top:4px",text:"Your hours go straight to HR. Keep doing your 2-hourly check-ins as usual."}))})();
+    const redo=el("div",{});if(T.in&&!T.out&&!openY){const rb=el("button",{class:"btn",style:"margin-top:6px",text:"↺ Wrong project or location? Time in again"});
+      rb.onclick=()=>inlineAsk(redo,{title:`Replace your time in (${tm(T.in.at)} at ${T.in.loc||"?"})? Choose where you are now and take a new selfie first.`,placeholder:"Why – e.g. timed in at the wrong project, testing, wrong location",okText:"↺ Time in again now",danger:false,onOk:async why=>{go_.why=why;await go_("redoIn",rb)}});redo.append(rb)}
+    if((T.inRedo||[]).length)redo.append(el("div",{class:"small",style:"margin-top:4px",text:`Time in redone ${T.inRedo.length}× today – first was ${tm(T.inRedo[0].at)} at ${T.inRedo[0].loc||"?"}.`}));
+    card.append(row,redo,out,el("div",{class:"small",style:"margin-top:4px",text:"Your hours go straight to HR. Keep doing your 2-hourly check-ins as usual."}))})();
   return card}
 // ---------- SCHEDULE tab ----------
 function lookAhead(days){const td=clamp(cur);const end=addD(td,days);const A=ACTS.filter(a=>a.start<=end&&a.end>=td);return ganttEl(A.map(a=>({...a,start:a.start<td?td:a.start,end:a.end>end?end:a.end})),statusMap(reports),td,null)}
@@ -7549,7 +7584,8 @@ function subSensitive(){if(!db)return;const r=OWNER?"gm":ROLE;
   if(["gm","hr"].includes(r)&&window.HRSUBF&&!SENS.hr){SENS.hr=1;["disc","evals","pnotes","comp"].forEach(window.HRSUBF)}
   if(["gm","acct"].includes(r)&&window.BANKSUBF&&!SENS.banks){SENS.banks=1;window.BANKSUBF()}}
 function applyRole(){
-  resolveRole();try{subSensitive()}catch(e){}fillSelectors();$("#tReport").textContent=isMnt()?"Visit report":isDesign()?"Design tracker":"PM report";$("#tList").textContent=isMnt()?"Visits & extras":isDesign()?"Client log":"Sent reports";$("#tSched").textContent=isMnt()?"Visit schedule":isDesign()?"Design timeline":"Schedule";
+  {const tr=document.getElementById("tReport");if(tr)tr.textContent=ROLE==="sup"?"Supervisor report":"PM report"}
+  resolveRole();try{subSensitive()}catch(e){}fillSelectors();$("#tReport").textContent=isMnt()?"Visit report":isDesign()?"Design tracker":ROLE==="sup"?"Supervisor report":"PM report";$("#tList").textContent=isMnt()?"Visits & extras":isDesign()?"Client log":"Sent reports";$("#tSched").textContent=isMnt()?"Visit schedule":isDesign()?"Design timeline":"Schedule";
   if(ROLE==="none"){Object.values(TABID).forEach(id=>$(id).style.display="none");$("#bar").style.display="none";renderNoAccess();return}
   if(isKiosk()){renderKiosk();return}
   if(isDesignProj(CFG)){P=BARN;try{localStorage.setItem("silong-proj",P)}catch(e){}applyProject();subscribe()}
@@ -7623,7 +7659,7 @@ function refresh(what){if(isKiosk())return;acctBadge();buyBadge();headBadge();gm
 function setProject(id){P=id;try{localStorage.setItem("silong-proj",P)}catch(e){}PLAN={};applyProject();subscribe();cur=clamp(iso(new Date()));applyRole();go(cur)}
 $("#projSel").onchange=e=>setProject(e.target.value);
 $("#roleSel").onchange=e=>{if(!OWNER)return;ROLE=e.target.value;tab=(TABS_FOR[ROLE]||[])[0];applyRole();switchTab(tab)};
-fillSelectors();applyRole();if(ROLE!=="none")go(cur);
+fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCleanup()}catch(e){}},20000);
 (async()=>{
   if(!window.claude||!window.claude.use)return;
   try{user=await window.claude.use("user")}catch(e){}
