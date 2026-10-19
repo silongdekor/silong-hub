@@ -392,7 +392,7 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
     <button role="tab" aria-selected="false" id="tProj">Projects</button>
     <button role="tab" aria-selected="false" id="tGM">GM</button>
     <button role="tab" aria-selected="false" id="tHead">Head of PMs</button>
-    <button role="tab" aria-selected="false" id="tDesign">Design</button>
+    <button role="tab" aria-selected="false" id="tDesign">🎨 Design</button>
     <button role="tab" aria-selected="false" id="tHR">HR</button>
     <button role="tab" aria-selected="false" id="tRoster">Roster</button>
     <button role="tab" aria-selected="false" id="tSched">Schedule</button>
@@ -1670,7 +1670,7 @@ async function renderAcct(){
     if(!tips.length)tips.push("All good – cash covers everything due this week.");
     b.append(el("div",{style:"margin-top:8px"},...tips.map(t=>el("div",{class:"mini",text:"• "+t}))));return b})}
   H("CASH & BANK");
-  if(money){R("cash","💰","Cash on hand",0,`${peso(tot)} · ${cashUpd().txt.replace("Updated ","")}`);R("summary","📊","Money summary",0,"tap to open")}
+  if(money){R("cash","💰","Cash on hand",0,cashUnlocked()?`${peso(tot)} · ${cashUpd().txt.replace("Updated ","")}`:"🔒 PIN",()=>cashLock(()=>SUBBUILD("cash")));R("summary","📊","Money summary",0,"tap to open")}
   R("day","🗓","Daily summary",0,"tap to open");
   if(money){H("MONEY IN");R("recv","📥","Receivables",0,"client billings",()=>el("div",{},el("p",{class:"hint",style:"margin:0 0 8px",text:"Money clients owe the company – contracts, billings and what's been paid."}),...recvView()))}
   H("TO PAY");
@@ -2575,7 +2575,7 @@ function designPreset(pid){const c=PROJS[pid]||{};const d=c.design||{};const dp=
   const legacyGot=i=>Object.values(CASHMOVES).filter(m=>m.kind==="in"&&!m.void&&m.received&&m.project===pid&&m.billKey==="d"+i).reduce((t,m)=>t+(+m.received_amt||0),0);
   let opening=0;const lines=(d.payments||[]).map((p,i)=>{const st=dp[i]||{};const amt=p.amt||Math.round((d.total||0)*p.pct/100);if(st.paidOn&&!legacyGot(i))opening+=amt;
     return {id:"l"+Date.now()+i,label:p.label,pct:p.amt?0:p.pct,amt:p.amt||0,due:"",legacyKey:"d"+i,...(st.invoice?{invNo:st.invoice,invDate:st.invoicedOn||""}:{})}});
-  return {title:`${c.name} – design fee`,client:c.client||"",project:pid,contract:d.total||0,opening,openingNote:opening?"Stages marked paid in the Design studio":"",lines,fromDesign:true}}
+  return {title:`${c.name} – design fee`,client:c.client||"",project:pid,contract:d.total||0,opening,openingNote:opening?"Stages marked paid in the Design tab":"",lines,fromDesign:true}}
 function recvCard(id,r){const C=recvCalc(id,r);const card=el("div",{class:"item"+(C.overdue>0.5?" need":"")});const can=canRecv();
   card.append(el("div",{class:"gmh"},el("div",{},el("b",{class:"iname",text:rTitle(r)}),el("div",{class:"imeta",text:[r.client,`contract ${peso(C.contract)}`,r.quoteNo?"Quote "+r.quoteNo:"",r.invNo?"Invoice "+r.invNo:"Invoice not yet sent"].filter(Boolean).join(" · ")})),
     el("div",{style:"text-align:right"},el("div",{class:"sumt",style:`font-size:22px;color:${C.outstanding<1?"var(--done)":C.overdue>0.5?"var(--late)":"var(--ink)"}`,text:C.outstanding<1?"Fully paid":peso(C.outstanding)}),el("div",{class:"small",text:C.outstanding<1?"":`outstanding${C.overdue>0.5?" · "+peso(C.overdue)+" overdue":""}`}))));
@@ -3733,9 +3733,9 @@ async function loadDesign(pid){
 async function renderDesignStudio(){
   if(!renderDesignStudio._i){renderDesignStudio._i=1;if(DESIGN_ROLES.includes(ROLE)&&dSub==="overview")dSub="myday"}
   const my=++RSEQ;const v=$("#view");v.replaceChildren();
-  if(!db){v.append(el("p",{class:"empty",text:"Sign in to use the Design studio."}));return}
+  if(!db){v.append(el("p",{class:"empty",text:"Sign in to use Design."}));return}
   const DPs=Object.entries(PROJS).filter(([,c])=>isDesignProj(c));
-  v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Design studio"}),el("div",{class:"dsub2",text:`${DPs.length} design project${DPs.length===1?"":"s"} · Project Architect + Architect Apprentices`})));
+  v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Design team"}),el("div",{class:"dsub2",text:`${DPs.length} design project${DPs.length===1?"":"s"} · Project Architect + Architect Apprentices`})));
   const SUBS=[["overview","All projects"],["walls","Floor plan & walls"],["team","By person"],["myday",DESIGN_ROLES.includes(ROLE)?"My daily report":"Daily reports"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
   v.append(el("div",{class:"opts subnav"},...SUBS.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}}))));
   if(["walls","team","myday"].includes(dSub)){if(dSub==="walls")await renderWalls(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
@@ -3974,7 +3974,7 @@ function designHomeCard(){if(!db)return null;const td=iso(new Date());
   if(["gm","head"].includes(ROLE)||(ROLE==="arch")){const D=designers();if(!D.length)return null;
     const d=el("details",{class:"panel gmcat",style:"margin-top:12px"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"🎨 Design team today"}),el("span",{class:"small",style:"margin-left:auto",text:"…"})));
     loadDayReports(td).then(R=>{const n=D.filter(p=>R[p.id]).length;const s_=d.querySelector("summary .small");s_.textContent=`${n}/${D.length} reports sent`+(n<D.length&&dNowHM()>DREP_DUE?" ⚠":"");});
-    let built=false;d.addEventListener("toggle",async()=>{if(!d.open||built)return;built=true;d.append(await reportsBoard(td),el("div",{class:"opts"},el("button",{class:"btn",text:"Open the Design studio →",onclick:()=>{dSub="team";switchTab("design")}})))});return d}
+    let built=false;d.addEventListener("toggle",async()=>{if(!d.open||built)return;built=true;d.append(await reportsBoard(td),el("div",{class:"opts"},el("button",{class:"btn",text:"Open the Design tab →",onclick:()=>{dSub="team";switchTab("design")}})))});return d}
   return null}
 
 
@@ -7093,10 +7093,17 @@ function memosView(){const box=el("div",{});const canW=["hr","gm","head"].includ
     box.append(el("div",{class:"panel",style:"margin-top:6px;cursor:pointer",onclick:()=>{memoOpen=id;renderHR()}},el("div",{style:"display:flex;justify-content:space-between;gap:8px"},el("b",{text:`${m.no} – ${m.subject}`}),ack?el("span",{class:"tag",text:ack}):""),el("div",{class:"small",text:`${fd(m.date)} · to ${memoToText(m)} · from ${m.fromLab}`})))});
   return box}
 // ---------- MY TIME IN / OUT (personal kiosk for PMs and Site Engineers until site tablets are set up) ----------
-const MYKIOSK_ROLES=["pm","sup","pmc","pmd","head"];
+const MYKIOSK_ROLES=["gm","head","pmc","pmd","pm","sup","hr","acct","buy","arch","appr"];
 function myKioskCard(){if(!db||!ME||!MYKIOSK_ROLES.includes(ROLE))return null;const sid=(Object.entries(STAFF).find(([,s])=>s.uid===ME)||[])[0]||sidOfUid(ME);
   const card=el("div",{class:"panel",style:"margin-top:12px"},el("b",{text:"🕘 Time in / Time out"}));
-  if(!sid){card.append(el("div",{class:"small",text:"Your Silong Hub account isn't linked to your staff record yet. Ask HR to link it (HR → Staff → your name → Silong Hub account)."}));return card}
+  if(!sid){const free=Object.entries(STAFF).filter(([,x])=>x&&x.name&&!x.uid&&!x.left&&!x.inactive).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+    const nm=((PEOPLE[ME]||{}).name||"").trim().toLowerCase();const sel=el("select",{class:"fin"},el("option",{value:"",text:"– choose your name –"}),...free.map(([id,x])=>el("option",{value:id,text:x.name})));
+    const g=free.find(([,x])=>x.name.trim().toLowerCase()===nm);if(g)sel.value=g[0];const o=el("div",{class:"small",style:"margin-top:6px"});
+    card.append(el("div",{class:"small",style:"margin:4px 0 8px",text:"To time in from your own Hub, first tell us which staff record is yours (one time only). HR is told and can correct it."}),el("div",{class:"form"},sel,el("button",{class:"btn main",text:"This is me",onclick:async e=>{const id=sel.value;if(!id){o.textContent="Choose your name.";return}
+      if(!confirm(`Link your Hub login to ${STAFF[id].name}? Your time in / out will be recorded under this name.`))return;e.target.disabled=true;
+      try{await db.collection("staff").doc(id).set({...STAFF[id],uid:ME,linkedAt:Date.now(),linkedBy:"self"});STAFF[id]={...STAFF[id],uid:ME};
+        try{await db.collection("messages").doc("m"+Date.now()+"hr").set({type:"update",to:"hr",from:ROLE,fromId:ME,subject:`🔗 ${STAFF[id].name} linked their Hub login`,body:`${(PEOPLE[ME]||{}).name||"A user"} (${ROLES[ROLE]||ROLE}) linked their Hub login to the staff record "${STAFF[id].name}" so they can time in from their own phone. If this is wrong, open HR → Staff → ${STAFF[id].name} → Silong Hub account and fix it.`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(_){}
+        toast("Linked.");const nc=myKioskCard();card.replaceWith(nc)}catch(er){o.textContent="Not saved – check the signal.";e.target.disabled=false}}})),o);return card}
   const st=el("div",{class:"small",text:"Loading…"});card.append(st);
   const now=new Date();const td=iso(now);const yd=addD(td,-1);
   (async()=>{let T={},Y={};try{const a=await db.collection("punch").doc(td+"_"+sid).get();if(a.exists)T=a.data();const b=await db.collection("punch").doc(yd+"_"+sid).get();if(b.exists)Y=b.data()}catch(e){}
@@ -7106,7 +7113,7 @@ function myKioskCard(){if(!db||!ME||!MYKIOSK_ROLES.includes(ROLE))return null;co
     const late=R.in&&!R.out&&Date.now()-R.in.at>10*36e5;if(late||(!R.in&&T.out)){st.style.color="var(--late)";if(late)st.textContent="⚠ NO TIME OUT yet – "+st.textContent+". Tap Time out when you finish, or it won't count."}
     if(Y.in&&!Y.out&&!openY)card.append(el("div",{class:"small",style:"color:var(--late);font-weight:700;margin-top:4px",text:`⚠ Yesterday: time in ${tm(Y.in.at)} but NO TIME OUT. Tell HR what time you finished so your hours count.`}));
     const locs=["Site – "+(CFG.name||"project"),...Object.values(PROJS).map(c=>"Site – "+(c.name||"")).filter(x=>x!=="Site – "),"Silong office / warehouse","Other"];
-    const loc=el("select",{class:"fin"},...[...new Set(locs)].map(x=>el("option",{value:x,text:x})));
+    const loc=el("select",{class:"fin"},...[...new Set(locs)].map(x=>el("option",{value:x,text:x})));if(!["pm","sup","pmc","pmd","head"].includes(ROLE))loc.value="Silong office / warehouse";
     const ph=el("input",{type:"file",accept:"image/*",capture:"user",class:"fin"});const out=el("div",{class:"small",style:"margin-top:6px"});
     const go_=async(kind,btn)=>{const f=ph.files[0];if(!f){out.textContent="📷 Take a selfie first (front camera).";return}
       if(f.lastModified&&Date.now()-f.lastModified>15*60000){out.textContent="⚠ That photo was taken more than 15 minutes ago. Take a new selfie.";return}
@@ -7124,7 +7131,7 @@ function myKioskCard(){if(!db||!ME||!MYKIOSK_ROLES.includes(ROLE))return null;co
     const redo=el("div",{});if(T.in&&!T.out&&!openY){const rb=el("button",{class:"btn",style:"margin-top:6px",text:"↺ Wrong project or location? Time in again"});
       rb.onclick=()=>inlineAsk(redo,{title:`Replace your time in (${tm(T.in.at)} at ${T.in.loc||"?"})? Choose where you are now and take a new selfie first.`,placeholder:"Why – e.g. timed in at the wrong project, testing, wrong location",okText:"↺ Time in again now",danger:false,onOk:async why=>{go_.why=why;await go_("redoIn",rb)}});redo.append(rb)}
     if((T.inRedo||[]).length)redo.append(el("div",{class:"small",style:"margin-top:4px",text:`Time in redone ${T.inRedo.length}× today – first was ${tm(T.inRedo[0].at)} at ${T.inRedo[0].loc||"?"}.`}));
-    card.append(row,redo,out,el("div",{class:"small",style:"margin-top:4px",text:"Your hours go straight to HR. Keep doing your 2-hourly check-ins as usual."}))})();
+    card.append(row,redo,out,el("div",{class:"small",style:"margin-top:4px",text:["pm","sup","pmc","pmd","head"].includes(ROLE)?"Your hours go straight to HR. Keep doing your 2-hourly check-ins as usual.":"Your hours go straight to HR – the same as timing in on the attendance phone. You can time in here and time out there, or the other way round."}))})();
   return card}
 // ---------- SCHEDULE tab ----------
 function lookAhead(days){const td=clamp(cur);const end=addD(td,days);const A=ACTS.filter(a=>a.start<=end&&a.end>=td);return ganttEl(A.map(a=>({...a,start:a.start<td?td:a.start,end:a.end>end?end:a.end})),statusMap(reports),td,null)}
@@ -7755,6 +7762,34 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   function upd(){if(!document.body.contains(btn))document.body.append(btn);try{const hs=history.state||{};if((!hs.hubTab||hs.hubTab==="noaccess")&&tab&&tab!=="noaccess")history.replaceState({hubTab:tab},"")}catch(e){}let show=false;try{const home=(TABS_FOR[ROLE]||["home"])[0];show=!isKiosk()&&ROLE!=="none"&&(tab!==home||!!inPage())&&!document.getElementById("pdfsheet")&&!document.getElementById("pgsheet")}catch(e){}btn.style.display=show?"":"none"}
   new MutationObserver(()=>{clearTimeout(window.__hbT);window.__hbT=setTimeout(upd,120)}).observe(document.body,{childList:true,subtree:true});
   setTimeout(upd,800)})();
+
+// ---------- Cash on hand PIN – each person (GM, Accounts) sets their own ----------
+let CASHOK=0;const CASH_MIN=5;
+function cashUnlocked(){return Date.now()-CASHOK<CASH_MIN*60e3}
+async function cashPinHash(pin){return pinHash("cash:"+ME,pin)}
+function cashLock(build){const box=el("div",{});
+  const show=()=>{CASHOK=Date.now();box.replaceChildren(build(),el("div",{class:"small",style:"margin-top:6px",text:`🔓 Unlocked – locks again ${CASH_MIN} minutes after you open it.`}),ROLE==="gm"?el("button",{class:"btn",style:"margin-top:6px;font-size:13px",text:"Reset someone's Cash on hand PIN",onclick:cashPinReset}):"");try{const n=document.querySelector("#ac_cash summary .small");if(n&&n.textContent==="🔒 PIN")n.textContent="unlocked"}catch(e){}};
+  if(cashUnlocked()){setTimeout(show,0);return box}
+  (async()=>{let doc={};try{const d=await db.collection("cashpin").doc(ME).get();doc=d.exists?d.data():{}}catch(e){}
+    const pi=el("input",{class:"fin",type:"password",inputmode:"numeric",autocomplete:"off",maxlength:"6",placeholder:"PIN",style:"font-size:22px;letter-spacing:6px;max-width:160px"});
+    const pi2=el("input",{class:"fin",type:"password",inputmode:"numeric",autocomplete:"off",maxlength:"6",placeholder:"again",style:"font-size:22px;letter-spacing:6px;max-width:160px"});
+    const o=el("div",{class:"small",style:"margin-top:6px"});let tries=0;
+    if(!doc.h){box.append(el("b",{text:"🔒 Set your own Cash on hand PIN"}),el("div",{class:"small",style:"margin:4px 0 8px",text:"4 to 6 numbers. Only you know it – you'll type it each time you open Cash on hand."}),el("div",{class:"form"},pi,pi2,el("button",{class:"btn main",text:"Save PIN",onclick:async()=>{
+        if(!/^\d{4,6}$/.test(pi.value)){o.textContent="Use 4 to 6 numbers.";return}if(pi.value!==pi2.value){o.textContent="The two PINs don't match.";return}
+        try{await db.collection("cashpin").doc(ME).set({h:await cashPinHash(pi.value),at:Date.now(),name:(PEOPLE[ME]||{}).name||""});show()}catch(e){o.textContent="Not saved – check the signal."}}})),o);return}
+    const go=async()=>{if(tries>=5){o.textContent="Too many wrong tries – wait a minute.";return}
+      if(await cashPinHash(pi.value)===doc.h){show()}else{tries++;pi.value="";o.textContent=`Wrong PIN (${tries}/5).`;if(tries>=5)setTimeout(()=>{tries=0;o.textContent="Try again."},60e3)}};
+    pi.onkeydown=e=>{if(e.key==="Enter")go()};
+    box.append(el("b",{text:"🔒 Enter your PIN to open Cash on hand"}),el("div",{class:"form",style:"margin-top:8px"},pi,el("button",{class:"btn main",text:"Open",onclick:go})),o,
+      el("button",{class:"btn",style:"margin-top:8px;font-size:13px",text:"Forgot PIN?",onclick:()=>{o.textContent=ROLE==="gm"?"Ask Claude to clear your PIN in Firebase (collection cashpin), then set a new one.":"Ask the AAT-Gen Manager to reset your PIN – she can do it after opening her own Cash on hand."}}));
+    setTimeout(()=>pi.focus(),50)})();
+  return box}
+async function cashPinReset(){if(ROLE!=="gm"){toast("Only the AAT-Gen Manager can reset PINs.");return}
+  let L=[];try{L=(await db.collection("cashpin").get()).docs.map(d=>({id:d.id,...d.data()}))}catch(e){}
+  if(!L.length){toast("No Cash on hand PINs set yet.");return}
+  const who=prompt("Reset whose PIN? Type the number:\n"+L.map((x,i)=>`${i+1}. ${x.name||(PEOPLE[x.id]||{}).name||x.id}`).join("\n"));const x=L[(+who||0)-1];if(!x)return;
+  if(!confirm(`Reset the Cash on hand PIN of ${x.name||x.id}? They will set a new one next time.`))return;
+  try{await db.collection("cashpin").doc(x.id).delete();if(x.id===ME)CASHOK=0;toast("PIN reset.")}catch(e){toast("Not reset – check the signal.")}}
 </script>
 </body>
 </html>
