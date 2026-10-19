@@ -3119,11 +3119,13 @@ async function renderProjects(){
 }
 async function renderGM(){
   const my=++RSEQ;const v=$("#view");v.replaceChildren();v.append(el("div",{id:"gmtop",style:"margin-top:12px"}));
+  try{const mk=myKioskCard();if(mk)v.append(mk)}catch(e){}
+  try{const wb=whereBoard();if(wb)v.append(wb)}catch(e){}
   {const W=accessWaiting();if(!W.length){const hv=Object.values(ACCESS||{}).map(a=>a.name).filter(Boolean);v.append(el("details",{class:"panel gmcat",style:"margin-top:12px"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"🔑 Access requests"}),el("span",{class:"small",style:"margin-left:auto",text:"none waiting"})),el("div",{class:"small",style:"margin-top:6px",text:`Nobody is waiting for approval right now. When someone opens the Silong Hub link and sends a request, it appears here with an Approve button.`}),el("div",{class:"small",style:"margin-top:6px",text:`Already have access (${hv.length}): ${hv.join(", ")}`})))}
    if(W.length){const b=el("div",{class:"panel attn",style:"margin-top:12px"},el("div",{class:"mini"},el("b",{text:`🔑 ${W.length} ${W.length>1?"people are":"person is"} asking to use Silong Hub`})),el("div",{class:"small",text:"Check the role, then tap Approve. Decline removes the request."}));
     W.forEach(id=>{const pr=PEOPLE[id]||{};const sel=el("select",{class:"fin","aria-label":"Role"},...Object.entries(ROLES).filter(([k])=>k!=="gm").map(([k,l])=>el("option",{value:k,text:l})));sel.value=pr.role||"pm";
       b.append(el("div",{class:"lrow"},el("span",{},el("b",{text:pr.name||"Unnamed"}),el("div",{class:"small",text:`Asked for: ${ROLES[pr.role]||"?"}${pr.at?" · "+when(pr.at):""}`})),el("span",{class:"form",style:"padding:0"},sel,
-        el("button",{class:"btn main",text:"Approve",onclick:async ev=>{ev.target.disabled=true;try{await db.collection("access").doc(id).set({role:sel.value,name:pr.name||"",at:Date.now()});toast(`${pr.name||"They"} can now use Silong Hub as ${ROLES[sel.value]}.`);renderGM()}catch(e){toast("Not saved.");ev.target.disabled=false}}}),
+        el("button",{class:"btn main",text:"Approve",onclick:async ev=>{ev.target.disabled=true;try{await db.collection("access").doc(id).set({role:sel.value,name:pr.name||"",at:Date.now()});toast(`${pr.name||"They"} can now use Silong Hub as ${ROLES[sel.value]}.`);renderGM()}catch(e){toast("Not saved – "+((e&&e.code)||(e&&e.message)||"error"));ev.target.disabled=false}}}),
         el("button",{class:"btn",text:"Decline",onclick:async ev=>{ev.target.disabled=true;try{await db.collection("people").doc(id).delete();toast("Request removed.");renderGM()}catch(e){toast("Not removed.");ev.target.disabled=false}}}))))});
     v.append(b)}}
   {const U=myUnseen();if(U.length)v.append(el("div",{style:"margin-top:12px"},...U.map(([id,n])=>noticeCard(id,n,true))));{const nb=noticeBoardPanel();if(nb)v.append(nb)}
@@ -3210,7 +3212,7 @@ async function renderGM(){
   {const nP=Object.keys(PROJS).length;let nT=0;try{nT=Object.keys(ACCESS||{}).length}catch(e){}
    const st=el("div",{id:"gmsetup",style:"margin-top:18px"});
    st.append(el("div",{class:"small",style:"font-weight:700;letter-spacing:.4px;margin:0 0 4px",text:"SETUP"}),
-     gmSetupRow("👥","Team & access",(accessWaiting().length?`${accessWaiting().length} asking · `:"")+(nT?`${nT} people`:""),accessSetup,"teamrow"),
+     (()=>{const d=gmSetupRow("👥","Team & access",(accessWaiting().length?`${accessWaiting().length} asking · `:"")+(nT?`${nT} people`:""),accessSetup,"teamrow");d.addEventListener("toggle",()=>{window.TEAMOPEN=d.open});if(window.TEAMOPEN)setTimeout(()=>{d.open=true;d.scrollIntoView({block:"start"})},0);return d})(),
      gmSetupRow("🏗","Add or edit projects",`${nP} project${nP>1?"s":""}`,projectSetup),
      gmSetupRow("💾","Download a full backup","",()=>el("div",{},el("p",{class:"small",text:"Saves everything in Silong Hub to a file on this device. Keep a copy somewhere safe."}),el("button",{class:"btn main",text:"💾 Download backup now",onclick:exportAll}),...(OWNER?[el("div",{class:"small",style:"margin-top:10px;font-weight:700",text:"Moving to the new hosted Hub"}),el("button",{class:"btn",text:"📦 Export everything for the move",onclick:exportForMove}),el("div",{class:"small",id:"migst"})]:[]))));
    v.append(st)}
@@ -3296,9 +3298,21 @@ function accessSetup(){
         r.append(el("span",{class:"form",style:"padding:0"},sel,el("button",{class:"btn",text:"Save",onclick:async()=>{try{if(sel.value)await db.collection("access").doc(x.id).set({...ACCESS[x.id],role:sel.value});else await db.collection("access").doc(x.id).delete();toast("Saved.")}catch(e){toast("Not saved.")}}})))}
       else r.append(el("button",{class:"x","aria-label":"Remove from list",text:"✕",onclick:async()=>{try{const L2=[...R_];L2.splice(x.roster,1);await db.doc("settings/main").set({...SETTINGS,roster:L2})}catch(e){toast("Not saved.")}}}));
       team.append(r)})});
-  if(waiting.length){team.append(el("div",{class:"mini",style:"margin-top:10px;color:var(--late)"},el("b",{text:`Asking for access (${waiting.length})`})));
-    waiting.forEach(id=>{const pr=PEOPLE[id];const sel=el("select",{class:"fin","aria-label":"Role"},...Object.entries(ROLES).filter(([k])=>k!=="gm").map(([k,l])=>el("option",{value:k,text:l})));sel.value=pr.role||"pm";
-      team.append(el("div",{class:"lrow"},el("span",{},el("b",{text:pr.name||"Unnamed"}),el("div",{class:"small",text:`Asked for: ${ROLES[pr.role]||"?"}`})),el("span",{class:"form",style:"padding:0"},sel,el("button",{class:"btn main",text:"Approve",onclick:async()=>{try{await db.collection("access").doc(id).set({role:sel.value,name:pr.name||"",at:Date.now()});toast("Access given.")}catch(e){toast("Not saved.")}}}))))})}
+  const redo=()=>{setTimeout(()=>{try{const nb=accessSetup();box.replaceWith(nb)}catch(e){}},300)};
+  if(waiting.length){const names={};Object.values(ACCESS).forEach(a=>{if(a&&a.name)names[a.name.trim().toLowerCase()]=a});
+    const seen={};const W=waiting.map(id=>({id,pr:PEOPLE[id]||{}})).sort((x,y)=>(y.pr.at||0)-(x.pr.at||0));
+    W.forEach(w=>{const n=(w.pr.name||"").trim().toLowerCase();w.has=n&&names[n];w.dup=n&&seen[n];if(n&&!seen[n])seen[n]=w.id;w.old=!w.pr.at||Date.now()-w.pr.at>14*864e5});
+    const junk=W.filter(w=>w.has||w.dup||!w.pr.name||w.old);
+    team.append(el("div",{class:"mini",style:"margin-top:10px;color:var(--late)"},el("b",{text:`Asking for access (${waiting.length})`})));
+    if(junk.length)team.append(el("div",{class:"panel",style:"margin:6px 0;background:var(--bg2,#f6f6f6)"},el("div",{class:"small",text:`${junk.length} of these look like leftovers – already have access, duplicates, no name, or older than 14 days.`}),
+      el("button",{class:"btn",style:"margin-top:6px",text:`🧹 Clear ${junk.length} leftover request${junk.length>1?"s":""}`,onclick:async ev=>{if(!confirm(`Remove ${junk.length} leftover requests? People with access keep their access.`))return;ev.target.disabled=true;let n=0;
+        for(const w of junk){try{await db.collection("people").doc(w.id).delete();n++}catch(e){}}toast(`${n} removed.`);redo()}})));
+    W.forEach(w=>{const id=w.id,pr=w.pr;const sel=el("select",{class:"fin","aria-label":"Role"},...Object.entries(ROLES).filter(([k])=>k!=="gm").map(([k,l])=>el("option",{value:k,text:l})));sel.value=ROLES[pr.role]?pr.role:"pm";
+      const why=w.has?` · ⚠ "${pr.name}" already has access as ${ROLES[w.has.role]||w.has.role} (another login)`:w.dup?" · ⚠ duplicate request":w.old?" · old request":"";
+      const o=el("div",{class:"small",style:"color:var(--late)"});
+      team.append(el("div",{class:"lrow",style:"flex-wrap:wrap"},el("span",{},el("b",{text:pr.name||"Unnamed"}),el("div",{class:"small",text:`Asked for: ${ROLES[pr.role]||"?"}${pr.at?" · "+when(pr.at):""}${why}`}),o),el("span",{class:"form",style:"padding:0"},sel,
+        el("button",{class:"btn main",text:"Approve",onclick:async ev=>{ev.target.disabled=true;ev.target.textContent="Saving…";try{await db.collection("access").doc(id).set({role:sel.value,name:pr.name||"",at:Date.now()});ACCESS[id]={role:sel.value,name:pr.name||""};toast(`${pr.name||"They"} can now use Silong Hub as ${ROLES[sel.value]}.`);redo()}catch(e){ev.target.disabled=false;ev.target.textContent="Approve";o.textContent="Not saved – "+((e&&e.code)||(e&&e.message)||"error")+". Send this to Claude."}}}),
+        el("button",{class:"btn",text:"Decline",onclick:async ev=>{ev.target.disabled=true;try{await db.collection("people").doc(id).delete();delete PEOPLE[id];toast("Request removed.");redo()}catch(e){ev.target.disabled=false;o.textContent="Not removed – "+((e&&e.code)||"error")}}}))))})}
   box.append(add,ros,el("h2",{style:"margin-top:16px"},"Your team"),team);return box;
 }
 
@@ -4284,7 +4298,7 @@ async function poReportPdf(){try{await loadJs("https://cdnjs.cloudflare.com/ajax
   const dl=await window.claude.use("downloads").catch(()=>null);if(!dl){toast("Downloads aren't available here.");return}
   await dl.save({filename:`PO_report_${iso(new Date())}.pdf`,data:new Uint8Array(doc.output("arraybuffer"))});toast("PDF ready.")}
 // ---------- PM check-ins today on Home (day shift) ----------
-function dayCheckCard(){if(!db||!["gm","head","pmc"].includes(ROLE))return null;let U=[],w=null;const td=iso(new Date());
+function dayCheckCard(){if(!db||ROLE!=="hr")return null;let U=[],w=null;const td=iso(new Date());
   try{w=dayWin(td);const exp=dayExpected(td);U=[...new Set([...exp,...Object.values(DUTY||{}).filter(x=>x.date===td&&x.kind==="day").map(x=>x.uid)])]}catch(e){return null}
   const now=Date.now();const R=U.map(u=>{const x=(DUTY||{})[dutyId(td,u,"day")]||{};const S=blocksOf(w).map(b=>dayBlockState(b,x));const C=x.checks||[];return {u,x,S,ok:S.filter(s=>s==="ok").length,miss:S.filter(s=>s==="miss").length,last:C.length?C[C.length-1]:null}});
   const bad=R.filter(r=>r.miss||(!r.last&&now>w.start+H2)).length;
@@ -4717,7 +4731,7 @@ async function photoCleanup(force){if(!db||!["gm","hr"].includes(ROLE))return;co
   if(force)toast(photos?`Deleted ${photos} old selfie${photos>1?"s":""} from ${docs} record${docs>1?"s":""}. Times and records kept.`:"No selfies older than "+PHOTO_KEEP_DAYS+" days to delete.");return {docs,photos}}
 
 // ---------- HR: confirm mistaken time-outs ----------
-function gapCard(){if(!db||!["gm","hr"].includes(ROLE))return null;const L=[];
+function gapCard(){if(!db||ROLE!=="hr")return null;const L=[];
   Object.entries(PUNCH||{}).forEach(([id,x])=>{if(!x||x.test)return;(x.gaps||[]).forEach((g,i)=>{if(g.ok==null)L.push({id,x,g,i})})});
   if(!L.length)return null;L.sort((a,b)=>b.g.to-a.g.to);
   const c=el("div",{class:"panel attn",style:"margin:10px 0"},el("b",{text:`⏱ Mistaken time-outs to confirm (${L.length})`}),el("div",{class:"small",text:"The time in between is paid until you decide. Check the selfies: were they still at work?"}));
@@ -5293,10 +5307,11 @@ async function exportCR(kind){
 // ---------- NOTICE BOARD ----------
 let NOTICES={};
 const NLVL={urgent:"🔴 Urgent",important:"📢 Important",fyi:"ℹ️ FYI"};
-const forMe=n=>!n.closed&&(ROLE==="gm"||(n.to||[]).includes("all")||(n.to||[]).includes(ROLE)||n.by===ME);
+const isAttNotice=n=>!!n&&(n.kind==="attendance"||JSON.stringify(n.to||[])==='["head","acct","hr"]');
+const forMe=n=>!n.closed&&!(isAttNotice(n)&&ROLE!=="hr")&&(ROLE==="gm"||(n.to||[]).includes("all")||(n.to||[]).includes(ROLE)||n.by===ME);
 const unseen=n=>forMe(n)&&n.by!==ME&&!((n.acks||{})[ME]);
 function noticeBoardPanel(){const cut=Date.now()-30*86400e3;
-  const mineAny=n=>ROLE==="gm"||(n.to||[]).includes("all")||(n.to||[]).includes(ROLE)||n.by===ME;
+  const mineAny=n=>!(isAttNotice(n)&&ROLE!=="hr"&&n.by!==ME)&&(ROLE==="gm"||(n.to||[]).includes("all")||(n.to||[]).includes(ROLE)||n.by===ME);
   const ALL=Object.entries(NOTICES).filter(([,n])=>n&&mineAny(n)&&!unseen(n)).sort((a,b)=>(b[1].at||0)-(a[1].at||0));
   const REC=ALL.filter(([,n])=>(n.at||0)>=cut),OLD=ALL.filter(([,n])=>(n.at||0)<cut);
   const d=el("details",{class:"panel gmcat",style:"margin-top:12px"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"📌 Notice board"}),el("span",{class:"small",style:"margin-left:auto",text:ALL.length?`${ALL.length} notice${ALL.length>1?"s":""} · tap to view`:"no notices yet"})));
@@ -5468,7 +5483,7 @@ const myStaff=()=>Object.entries(STAFF).find(([,s])=>s.uid===ME);
 function leaveOn(sid,d){return Object.entries(LEAVES).find(([,l])=>l.staff===sid&&l.status==="approved"&&l.from<=d&&(l.to||l.from)>=d)}
 function dayStatus(sid,d){const a=ATTEND[d+"_"+sid];if(a)return {k:a.status,a};const lv=leaveOn(sid,d);if(lv)return {k:"leave",lv:lv[1]};const s=STAFF[sid]||{};if((s.off||[]).includes(pd(d).getDay()))return {k:"off"};return {k:null}}
 function leaveDays(l){let n=0;for(let d=l.from;d<=(l.to||l.from);d=addD(d,1))n++;return l.half?0.5:n}
-function hrBadge(){const t=$("#tHR");if(!t)return;const p=Object.values(LEAVES).filter(l=>l.status==="pending").length+hrAlarmsAll().length;const td=iso(new Date());const nc=Object.entries(ATTEND).filter(([k,a])=>k.startsWith(td)&&a.status==="nocall").length;const n=p+nc;t.textContent=n?`HR · ${n}`:"HR";t.classList.remove("flash")}
+function hrBadge(){const t=$("#tHR");if(!t)return;const p=Object.values(LEAVES).filter(l=>l.status==="pending").length+hrAlarmsAll().length;const td=iso(new Date());const nc=ROLE!=="hr"?0:Object.entries(ATTEND).filter(([k,a])=>k.startsWith(td)&&a.status==="nocall").length;const n=p+nc;t.textContent=n?`HR · ${n}`:"HR";t.classList.remove("flash")}
 function leaveForm(forSid,onDone){
   const box=el("div",{class:"panel"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);const me=myStaff();
   const who=el("select",{class:"fin","aria-label":"Staff"},...Object.entries(STAFF).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,s])=>el("option",{value:id,text:s.name})));who.value=forSid||(me?me[0]:"");
@@ -5483,8 +5498,8 @@ function leaveForm(forSid,onDone){
       try{const ids=[];for(const f of files)ids.push(await saveAttachment(f));const today_=/today/.test(ty.value);const s=STAFF[sid];
         const id="lv"+Date.now();await db.collection("leaves").doc(id).set({staff:sid,name:s.name,type:ty.value,from:fr.value,to:to.value,half:hf.checked,reason:rs.value.trim(),arrive:tm.value,attach:ids,status:today_?"noted":"pending",by:ME,byRole:ROLE,at:Date.now()});
         if(today_){const st=ty.value==="Late today"?"late":"called";const na=nowHM();const sg=suggestExcuse({kind:st==="late"?"late":"absent",informed:true,noticeAt:na,reason:rs.value,proof:ids.length>0},sid);await db.collection("attend").doc(fr.value+"_"+sid).set({status:st,time:tm.value,informed:true,noticeAt:na,receivedBy:"Silong Hub (self-report)",reason:rs.value.trim(),note:`${ty.value}${rs.value.trim()?" – "+rs.value.trim():""}`,proof:ids,excused:sg[0]==="excused"?"pending":sg[0],reportedAt:Date.now(),by:ME})}
-        await db.collection("notices").doc("n"+Date.now()).set({title:`${s.name}: ${ty.value}${today_?"":" "+fd(fr.value)+(to.value!==fr.value?" – "+fd(to.value):"")}`,body:rs.value.trim(),level:today_?"important":"fyi",project:s.project||"company",to:["head","acct","hr"],attach:[],by:ME,byRole:ROLE,fromName:s.name,at:Date.now(),acks:{},closed:false});
-        toast(today_?"Noted – HR and the Head of PMs can see it.":"Leave request sent for approval.");if(onDone)onDone()}catch(er){toast("Not sent: "+((er&&(er.code||er.message))||"try again"));e.target.disabled=false}}}));
+        await db.collection("notices").doc("n"+Date.now()).set({title:`${s.name}: ${ty.value}${today_?"":" "+fd(fr.value)+(to.value!==fr.value?" – "+fd(to.value):"")}`,body:rs.value.trim(),level:today_?"important":"fyi",kind:"attendance",project:s.project||"company",to:["hr"],attach:[],by:ME,byRole:ROLE,fromName:s.name,at:Date.now(),acks:{},closed:false});
+        toast(today_?"Noted – HR can see it.":"Leave request sent for approval.");if(onDone)onDone()}catch(er){toast("Not sent: "+((er&&(er.code||er.message))||"try again"));e.target.disabled=false}}}));
   setTimeout(sync,0);return box;
 }
 // ---------- positions catalogue / career ladders ----------
@@ -6121,13 +6136,14 @@ async function contractPages(sid){const s=STAFF[sid]||{};const C=compOf(sid).cur
   return pages}
 // ---------- HOME dashboard ----------
 async function renderHome(){
+  if(ROLE==="gm"){if((document.getElementById("teamrow")||{}).open)return;return renderGM()}
   const my=++RSEQ;const v=$("#view");v.replaceChildren();const td=iso(new Date());
   const nm=(NAMES[ME]||(ACCESS[ME]||{}).name||"").split(" ")[0];
   v.append(el("div",{class:"hello"},el("div",{class:"t",text:`Good ${new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening"}${ROLE==="gm"?", AAT-Gen Manager":nm?", "+nm:""}`}),el("div",{class:"s",text:`${ROLES[ROLE]} · ${fmt(td,{weekday:"long",day:"numeric",month:"long"})}`})));
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to see your dashboard."}));return}
   {const ar=accessReqCard();if(ar)v.append(ar);const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const gpc=gapCard();if(gpc)v.append(gpc);const src=supRepCard();if(src)v.append(src);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
   {const dh=designHomeCard();if(dh)v.append(dh)}
-  if(["gm","head","pmc","pmd","pm","sup","hr"].includes(ROLE)){const wb=whereBoard();if(wb)v.append(wb)}
+  if(["gm","head","pmc","pmd","pm"].includes(ROLE)){const wb=whereBoard();if(wb)v.append(wb)}
   {const pc=planCard();if(pc)v.append(pc)}
   if(["gm","acct"].includes(ROLE)){const P_=cashPosition();const goCash=()=>{acctSub="cash";switchTab("acct")};
     const BG=bankGrid(P_,goCash);
@@ -7725,7 +7741,7 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   if(!db){applyRole();return}
   if(OWNER){try{const o_=await db.doc("meta/owner").get();if(o_&&o_.exists){if((o_.data()||{}).id!==ME){OWNER=false;ROLE="none"}}else await db.doc("meta/owner").set({id:ME,at:Date.now()})}catch(e){}}
   db.collection("access").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});ACCESS=n;applyRole();if(tab==="gm")refresh("gm")},()=>{});
-  db.collection("people").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});PEOPLE=n;try{gmBadge()}catch(e){}if(tab==="home"&&ROLE==="gm"&&!(document.activeElement&&document.activeElement.matches("input,select,textarea")))try{renderHome()}catch(e){}if(tab==="noaccess")renderNoAccess();if(tab==="gm")refresh("gm")},()=>{});
+  db.collection("people").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});PEOPLE=n;try{gmBadge()}catch(e){}if(tab==="home"&&ROLE==="gm"&&!(document.getElementById("teamrow")||{}).open&&!(document.activeElement&&document.activeElement.matches("input,select,textarea")))try{renderGM()}catch(e){}if(tab==="noaccess")renderNoAccess();if(tab==="gm")refresh("gm")},()=>{});
   {db.collection("quotes").onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});QUOTES=n;refresh("bill")},()=>{});db.collection("invoices").onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});INVS=n;refresh("bill")},()=>{});db.doc("billing/settings").onSnapshot(d=>{BSET=(d&&d.exists&&d.data())||{}},()=>{})}
   db.doc("hr/settings").onSnapshot(d=>{HRSET=(d&&d.exists&&d.data())||{};if(tab==="hr"&&hrSub==="rules"&&!(document.activeElement&&document.activeElement.matches("input,textarea")))renderHR()},()=>{});
   window.HRSUBF=c_=>db.collection(c_).onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});if(c_==="punch"){PUNCH=n;if(isKiosk()){if(!KSEL&&!(document.activeElement&&document.activeElement.matches("input")))renderKiosk();return}if(tab==="home"&&document.getElementById("whereboard")){renderHome();return}if(tab!=="hr")return}else if(c_==="duty"){const mine=o=>JSON.stringify(Object.entries(o).filter(([,x])=>x.uid===ME));const ch=mine(n)!==mine(DUTY);DUTY=n;if(ch&&tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderHome();scrollTo(0,y)}if(tab!=="hr")return}else if(c_==="otapprove"){OTAPP=n;if(tab==="home"&&["head","pmc"].includes(ROLE)&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderHome()}catch(e){}}else if(c_==="aplan"){APLAN=n;if(isKiosk())return;if(tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;try{renderHome()}catch(e){}scrollTo(0,y)}return}else if(c_==="paycfg")PAYCFG=n;else if(c_==="memos")MEMOS=n;else if(c_==="staff")STAFF=n;else if(c_==="attend")ATTEND=n;else if(c_==="leaves")LEAVES=n;else if(c_==="disc")DISC=n;else if(c_==="evals")EVALS=n;else if(c_==="pnotes")PNOTES=n;else if(c_==="mnotices")MNOT=n;else COMP=n;hrBadge();if(tab==="hr"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderHR();scrollTo(0,y)}},()=>{});
