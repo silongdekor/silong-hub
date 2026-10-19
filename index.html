@@ -3121,6 +3121,8 @@ async function renderGM(){
   const my=++RSEQ;const v=$("#view");v.replaceChildren();v.append(el("div",{id:"gmtop",style:"margin-top:12px"}));
   try{const mk=myKioskCard();if(mk)v.append(mk)}catch(e){}
   try{const wb=whereBoard();if(wb)v.append(wb)}catch(e){}
+  // GM cards that live on the staff dashboard too – keep them on the GM Home
+  [()=>reviewCard(),()=>otApproveCard(),()=>rosterCard(),()=>supRepCard(),()=>designHomeCard()].forEach(f=>{try{const x=f();if(x)v.append(x)}catch(e){}});
   {const W=accessWaiting();if(!W.length){const hv=Object.values(ACCESS||{}).map(a=>a.name).filter(Boolean);v.append(el("details",{class:"panel gmcat",style:"margin-top:12px"},el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"🔑 Access requests"}),el("span",{class:"small",style:"margin-left:auto",text:"none waiting"})),el("div",{class:"small",style:"margin-top:6px",text:`Nobody is waiting for approval right now. When someone opens the Silong Hub link and sends a request, it appears here with an Approve button.`}),el("div",{class:"small",style:"margin-top:6px",text:`Already have access (${hv.length}): ${hv.join(", ")}`})))}
    if(W.length){const b=el("div",{class:"panel attn",style:"margin-top:12px"},el("div",{class:"mini"},el("b",{text:`🔑 ${W.length} ${W.length>1?"people are":"person is"} asking to use Silong Hub`})),el("div",{class:"small",text:"Check the role, then tap Approve. Decline removes the request."}));
     W.forEach(id=>{const pr=PEOPLE[id]||{};const sel=el("select",{class:"fin","aria-label":"Role"},...Object.entries(ROLES).filter(([k])=>k!=="gm").map(([k,l])=>el("option",{value:k,text:l})));sel.value=pr.role||"pm";
