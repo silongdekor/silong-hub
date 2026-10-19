@@ -1658,7 +1658,7 @@ async function renderAcct(){
   const nOpen=pay.filter(p=>!p.paid).length;const QC=acctQCount();
   const host=el("div",{id:"acctrows"});const H=t=>host.append(el("div",{class:"small",style:"margin:14px 0 6px;font-weight:700;letter-spacing:.04em",text:t}));
   const R=(k,icon,label,count,note,build)=>host.append(acctRow(k,icon,label,count,note,build||(()=>SUBBUILD(k))));
-  if(money){H("TODAY");R("check","🧭","Money check – next 7 days",0,gap>=0?"covered":`${peso(-gap)} short`,()=>{const b=el("div",{class:"panel"});
+  if(money){H("TODAY");R("check","🧭","Money check – next 7 days",0,!cashUnlocked()?"🔒 PIN":gap>=0?"covered":`${peso(-gap)} short`,()=>cashLock(()=>{const b=el("div",{class:"panel"});
     const L=(a,t)=>el("div",{class:"mini",style:"display:flex;justify-content:space-between;gap:10px"},el("span",{text:a}),el("b",{text:t}));
     b.append(L("Cash on hand",peso(tot)),L(`Due by ${fd(wk)} (${due7.length} bill${due7.length===1?"":"s"}, incl. overdue)`,peso(due7s)),el("div",{style:"border-top:1px solid var(--line);margin:6px 0"}),L(gap>=0?"Left after paying":"Short by",peso(Math.abs(gap))));
     if(wdels)b.append(L(`Waiting for a late delivery (${wdel.length})`,peso(wdels)));
@@ -1668,9 +1668,9 @@ async function renderAcct(){
     try{const rb=recvAll().reduce((n,{C})=>n+C.lines.filter(l=>l.status==="ready").length,0);if(rb)tips.push(`${rb} client billing${rb>1?"s are":" is"} ready to send – collecting is the fastest way to close the gap.`)}catch(e){}
     if(heldDue)tips.push(`${heldDue} bill${heldDue>1?"s":""} on hold reached its reminder date.`);
     if(!tips.length)tips.push("All good – cash covers everything due this week.");
-    b.append(el("div",{style:"margin-top:8px"},...tips.map(t=>el("div",{class:"mini",text:"• "+t}))));return b})}
+    b.append(el("div",{style:"margin-top:8px"},...tips.map(t=>el("div",{class:"mini",text:"• "+t}))));return b}))}
   H("CASH & BANK");
-  if(money){R("cash","💰","Cash on hand",0,cashUnlocked()?`${peso(tot)} · ${cashUpd().txt.replace("Updated ","")}`:"🔒 PIN",()=>cashLock(()=>SUBBUILD("cash")));R("summary","📊","Money summary",0,"tap to open")}
+  if(money){R("cash","💰","Cash on hand",0,cashUnlocked()?`${peso(tot)} · ${cashUpd().txt.replace("Updated ","")}`:"🔒 PIN",()=>cashLock(()=>SUBBUILD("cash")));R("summary","📊","Money summary",0,cashUnlocked()?"tap to open":"🔒 PIN",()=>cashLock(()=>SUBBUILD("summary")))}
   R("day","🗓","Daily summary",0,"tap to open");
   if(money){H("MONEY IN");R("recv","📥","Receivables",0,"client billings",()=>el("div",{},el("p",{class:"hint",style:"margin:0 0 8px",text:"Money clients owe the company – contracts, billings and what's been paid."}),...recvView()))}
   H("TO PAY");
@@ -1944,7 +1944,7 @@ function gmAlerts(){
   const D={reports,ORD:ORDERS,PD:PAID};const pay=[...projPayables(D,P),...ledgerPayables("project")];const U=urgentOf(pay,advances(pay,"project"));
   if(DP&&isDesignProj(PROJS[DP])&&Object.keys(DDEL).length){payStatus(PROJS[DP],dState(PROJS[DP])).filter(p=>p.state==="bill").forEach(p=>A.push({k:"acct",txt:`${PROJS[DP].name}: ${p.label} (${peso(p.amt)}) is ready to bill – the phase is approved.`}))}
   {const H=hrAlarmsAll();if(H.length)A.push({k:"hr",txt:`HR: ${H.length} item${H.length>1?"s":""} due – ${H.slice(0,2).map(h=>h.txt).join("; ")}${H.length>2?" …":""}`})}
-  {const P_=cashPosition();if(P_.free<0)A.push({k:"cash",txt:`Cash: committed payments exceed cash on hand by ${peso(-P_.free)} – the available balance is negative.`});
+  {const P_=cashPosition();if(P_.free<0)A.push({k:"cash",txt:`Cash: committed payments are more than cash on hand – open Cash on hand (PIN) to see.`});
    P_.banks.forEach(b=>{const g=expectedBalance(b.id)-(+b.balance||0);if(Math.abs(g)>0.5)A.push({k:"cash",txt:`${b.name}: balance is off by ${peso(Math.abs(g))} – an unrecorded ${g>0?"deposit":"withdrawal"}? Accounts to check.`})});}
   {const OD=recvAll().reduce((t,{C})=>t+C.overdue,0),RB=recvAll().reduce((t,{C})=>t+C.lines.filter(l=>l.status==="ready").length,0);
    if(OD>0.5)A.push({k:"recv",txt:`Receivables: ${peso(OD)} overdue from clients.`});if(RB)A.push({k:"recv",txt:`Receivables: ${RB} billing${RB>1?"s":""} ready to issue – PM flagged the milestone.`})}
@@ -3135,8 +3135,8 @@ async function renderGM(){
   {const P_=cashPosition();const tileC=(n,l,cls)=>el("div",{class:"kpi"+(cls?" "+cls:"")},el("div",{class:"n",style:"font-size:22px",text:n}),el("div",{class:"l",text:l}));
    const kpis=el("div",{class:"kpis"},tileC(peso(P_.total),"total cash on hand"),tileC(peso(P_.commit),"committed payments","a"),tileC(peso(P_.incoming),"receivables","g"));
    const openBtn=el("button",{class:"btn",text:"Open the money page",onclick:()=>{acctSub="cash";switchTab("acct")}});
-   const cr=el("details",{class:"panel gmcat",id:"gmcash"});cr.append(el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"💰 Cash on hand"}),el("span",{style:"margin-left:auto;text-align:right"},el("div",{style:"font-weight:700",text:peso(P_.total)}),el("div",{class:"small",style:"font-weight:400",text:cashUpd().txt}))));
-   gmAccordion(cr);cr.append(el("div",{style:"margin-top:8px"},el("div",{class:"small",text:`Entered by Accounts. ${cashUpd().txt}${cashUpd().ent?` · last balance entered ${dtTxt(cashUpd().ent)}${cashUpd().by?" by "+cashUpd().by:""}`:""}.`}),...bankGrid(P_,()=>{acctSub="cash";switchTab("acct")}),kpis,openBtn,gmCloser(cr)));
+   const cr=el("details",{class:"panel gmcat",id:"gmcash"});cr.append(el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"💰 Cash on hand"}),el("span",{style:"margin-left:auto;text-align:right"},el("div",{style:"font-weight:700",text:cashUnlocked()?peso(P_.total):"🔒 PIN"}),el("div",{class:"small",style:"font-weight:400",text:cashUnlocked()?cashUpd().txt:"tap to unlock"}))));
+   gmAccordion(cr);const crBody=()=>el("div",{style:"margin-top:8px"},el("div",{class:"small",text:`Entered by Accounts. ${cashUpd().txt}${cashUpd().ent?` · last balance entered ${dtTxt(cashUpd().ent)}${cashUpd().by?" by "+cashUpd().by:""}`:""}.`}),...bankGrid(P_,()=>{acctSub="cash";switchTab("acct")}),kpis,openBtn);let crB=false;cr.addEventListener("toggle",()=>{if(!cr.open||crB)return;crB=true;cr.append(cashLock(crBody),gmCloser(cr))});
    const top=document.getElementById("gmtop")||v;top.prepend(cr);}
   if(!db){v.append(el("p",{class:"empty",text:"The dashboard fills in once you're signed in."}));return}
   {const C=gmDashCounts();
@@ -3743,15 +3743,154 @@ function payStatus(c,S,dp){dp=dp||DPAY;return ((c.design||{}).payments||[]).map(
 async function loadDesign(pid){
   const g=async x=>{try{const s_=await db.collection(dcol(pid,x)).get();const m={};s_.docs.forEach(d=>m[d.id]=d.data());return m}catch(e){return {}}};
   const [dd,dr,di,dv,drev,dp]=await Promise.all(["ddeliv","dreports","dinstr","dvisits","drevs","dpay"].map(g));return {cfg:PROJS[pid],dd,dr,di,dv,drev,dp}}
+// ---------- DESIGN PATH: step-by-step, target date, due dates worked out backwards ----------
+const DFLOW=[
+ {k:"fp",n:"Floor plan",h:"Draw the floor plan, then upload it under “Floor plan & walls” and name each wall.",pct:10,up:1},
+ {k:"fpok",n:"Client approves the floor plan",h:"Send the floor plan to the client. Nothing moves on until they approve it.",gate:1},
+ {k:"mass",n:"3D massing",h:"Build the 3D massing from the approved floor plan.",pct:15},
+ {k:"persp",n:"Perspectives",h:"Perspectives of each wall, room and area. Add each area below and give it to one person.",pct:30,areas:1},
+ {k:"rev",n:"Revisions",h:"Make the client’s changes to the perspectives.",pct:15},
+ {k:"dok",n:"Client approves the design",h:"The client signs off the perspectives before any 2D work starts.",gate:1},
+ {k:"cd",n:"Construction drawings",h:"2D line drawings: plans, ceiling plan, elevations, sections, details.",pct:30},
+ {k:"mep",n:"MEP & fire safety",h:"Mechanical, electrical, plumbing and fire safety – usually done by an engineering consultant. Usually for commercial or bigger residential.",pct:15,opt:"mep",cons:1},
+ {k:"permit",n:"Building permit set",h:"Complete signed drawing set, submitted for the building permit.",pct:10,opt:"permit"},
+ {k:"asb",n:"As-built plans & occupancy permit",h:"After construction: as-built plans and the occupancy permit. Only when there is a building permit and it is ours on this project.",opt:"asb",after:1},
+];
+const DF_GATE_DAYS=3;let DFL={},DFP=null;try{DFP=localStorage.getItem("silong-dflow")}catch(e){}
+const dfLead=()=>ROLE==="gm"||ROLE==="arch"||OWNER;
+const dfDays=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const dfOn=(f,s)=>!s.opt||(s.opt==="asb"?!!(f.opt||{}).permit&&!!f.asbOurs:!!(f.opt||{})[s.opt]);
+const dfSteps=f=>DFLOW.filter(s=>dfOn(f,s));
+const dfSt=(f,k)=>((f.st||{})[k])||{};
+const dfDone=(f,s)=>s.areas?(dfSt(f,s.k).done||((f.areas||[]).length>0&&(f.areas||[]).every(a=>a.done))):!!dfSt(f,s.k).done;
+async function dfLoad(){try{const q=await db.collection("dflow").get();const n={};q.forEach(d=>{n[d.id]=d.data()});DFL=n}catch(e){}return DFL}
+async function dfSave(pid,f){f.updatedAt=Date.now();f.by=ME;await db.collection("dflow").doc(pid).set(f);DFL[pid]=f}
+// work out due dates backwards from the target, keeping finished steps as they are
+function dfPlan(f){const td=iso(new Date());const st={...(f.st||{})};const S=dfSteps(f).filter(s=>!s.after);
+  const end=addD(f.target,-(+f.review||0));let cur=f.start||td;
+  const open=S.filter(s=>!dfDone(f,s));const gates=open.filter(s=>s.gate).length;
+  if(S.some(s=>dfDone(f,s))&&cur<td)cur=td;
+  const avail=Math.max(open.filter(s=>!s.gate).length,dfDays(cur,end)-gates*DF_GATE_DAYS);
+  const P=f.pct||{};const w=s=>+(P[s.k]??s.pct)||0;const tot=open.filter(s=>!s.gate).reduce((t,s)=>t+w(s),0)||1;
+  let used=0;const nonGate=open.filter(s=>!s.gate);
+  open.forEach(s=>{let d;if(s.gate)d=DF_GATE_DAYS;else{const isLast=s===nonGate[nonGate.length-1];d=isLast?Math.max(1,avail-used):Math.max(1,Math.round(avail*w(s)/tot));used+=d}
+    cur=addD(cur,d);st[s.k]={...(st[s.k]||{}),due:cur}});
+  if(f.areas&&st.persp&&st.persp.due)f.areas=f.areas.map(a=>a.done||a.man?a:{...a,due:st.persp.due});
+  f.st=st;return f}
+function dfRisk(f){const td=iso(new Date());let worst=null;dfSteps(f).forEach(s=>{if(dfDone(f,s))return;const d=dfSt(f,s.k).due;if(d&&d<td){const n=dfDays(d,td);if(!worst||n>worst.n)worst={n,s}}});
+  (f.areas||[]).forEach(a=>{if(!a.done&&a.due&&a.due<td){const n=dfDays(a.due,td);if(!worst||n>worst.n)worst={n,s:{n:"Perspective – "+a.name}}}});return worst}
+function dfTasks(){const td=iso(new Date());const out=[];Object.entries(DFL).forEach(([pid,f])=>{const c=PROJS[pid];if(!c||c.closed)return;const S=dfSteps(f);const cur=S.find(s=>!dfDone(f,s));
+  S.forEach(s=>{if(dfDone(f,s)||s.areas||s.gate)return;const x=dfSt(f,s.k);if(x.who)out.push({pid,pname:c.name,who:x.who,what:s.n,due:x.due,now:cur===s})});
+  (f.areas||[]).forEach(a=>{if(!a.done&&a.who)out.push({pid,pname:c.name,who:a.who,what:"Perspective – "+a.name,due:a.due,now:cur&&cur.k==="persp"})})});
+  return out.sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"))}
+
+async function renderDesignPath(v,my){
+  const td=iso(new Date());const lead=dfLead();await dfLoad();if(my!==RSEQ)return;
+  const D=designers();const whoSel=(val,lbl)=>{const x=el("select",{class:"fin","aria-label":lbl||"Who"},el("option",{value:"",text:"– not assigned –"}),...D.map(p=>el("option",{value:p.id,text:p.name})));x.value=val||"";return x};
+  const redraw=()=>renderDesignStudio();
+  // how it works
+  const how=el("details",{class:"panel",style:"margin:8px 0"},el("summary",{},el("b",{text:"ℹ️ How this tab works – read me first"})));
+  how.append(el("ol",{style:"margin:8px 0 4px 18px;padding:0;line-height:1.55"},
+    el("li",{text:"Start a design path for a project and set the date we must deliver it by. The app works out a due date for every step."}),
+    el("li",{text:"Floor plan first. Upload it under “Floor plan & walls” and name each wall."}),
+    el("li",{text:"Client approves the floor plan – nothing moves on until this is ticked."}),
+    el("li",{text:"3D massing, then perspectives. Each room or area goes to one person."}),
+    el("li",{text:"Revisions, then the client approves the design."}),
+    el("li",{text:"Construction drawings (ceiling plan, details…), then MEP, building permit and as-built if the project needs them."}),
+    el("li",{text:`Every designer sends the daily report by ${typeof DREP_DUE!=="undefined"?dT12(DREP_DUE):"4:45 PM"}.`})),
+    el("p",{class:"small",text:"The AAT-Gen Manager and the Project Architect assign the work. Each person ticks their own step or area when it’s done."}));
+  v.append(how);
+  // my work (everyone)
+  const T=dfTasks();const mine=T.filter(t=>t.who===ME);
+  if(mine.length){const box=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--hivis)"},el("div",{style:"font-weight:700;margin-bottom:4px",text:"👤 Your work, soonest first"}));
+    mine.slice(0,8).forEach(t=>{const lt=t.due&&t.due<td;box.append(el("div",{class:"mini",style:"display:flex;justify-content:space-between;gap:8px;padding:3px 0;cursor:pointer",onclick:()=>{DFP=t.pid;try{localStorage.setItem("silong-dflow",DFP)}catch(e){}redraw()}},
+      el("span",{text:`${t.pname}: ${t.what}`}),el("span",{class:"tag"+(lt?" due":""),text:t.due?(lt?`${dfDays(t.due,td)}d late`:"due "+fd(t.due)):"no date"})))});v.append(box)}
+  const ids=Object.keys(DFL).filter(id=>PROJS[id]&&!PROJS[id].closed);
+  // start a new path
+  const startForm=()=>{const b=el("div",{class:"panel"});const P_=wallProjs().filter(([id])=>!DFL[id]);
+    const ps=el("select",{class:"fin","aria-label":"Project"},el("option",{value:"",text:"– pick the project –"}),...P_.map(([id,c])=>el("option",{value:id,text:c.name})));
+    const sd=el("input",{class:"fin",type:"date","aria-label":"Start"});sd.value=td;const tg=el("input",{class:"fin",type:"date","aria-label":"Target"});
+    const ck=(t)=>{const i=el("input",{type:"checkbox"});return [i,el("label",{class:"small",style:"display:flex;gap:8px;align-items:center;margin:4px 0"},i,t)]};
+    const [m1,l1]=ck("Needs MEP & fire safety (engineering consultant)");const [m2,l2]=ck("Needs a building permit drawing set");const [m3,l3]=ck("As-built plans & occupancy permit are ours on this project");
+    b.append(el("div",{class:"small",style:"font-weight:700",text:"Step 1 – pick the project and set the deadline"}),el("div",{class:"form"},ps,el("label",{class:"small fdate"},"Start ",sd),el("label",{class:"small fdate"},"Deliver by (target) ",tg)),l1,l2,l3,
+      el("p",{class:"hint",text:"Not in the list? The AAT-Gen Manager adds it first under “All projects”."}),
+      el("button",{class:"btn main",text:"Save and work out the due dates",onclick:async e=>{if(!ps.value){ps.focus();return}if(!tg.value||tg.value<=sd.value){toast("Put a deliver-by date after the start date.");tg.focus();return}
+        e.target.disabled=true;const f=dfPlan({start:sd.value,target:tg.value,review:5,opt:{mep:m1.checked,permit:m2.checked},asbOurs:m3.checked,st:{},areas:[]});
+        try{await dfSave(ps.value,f);DFP=ps.value;try{localStorage.setItem("silong-dflow",DFP)}catch(_){}toast("Saved – due dates worked out.");redraw()}catch(err){toast("Not saved – "+(err.code||err.message||"error"));e.target.disabled=false}}}));return b};
+  if(!ids.length){v.append(el("div",{class:"panel",style:"margin:10px 0;text-align:center"},el("div",{style:"font-size:17px;font-weight:700;margin-bottom:4px",text:"No design path yet"}),el("p",{class:"hint",text:lead?"Start here: pick a project and the date it must be delivered.":"The AAT-Gen Manager or the Project Architect starts each project here."})));
+    if(lead)v.append(startForm());return}
+  if(!DFP||!ids.includes(DFP))DFP=ids.sort((a,b)=>(DFL[a].target||"").localeCompare(DFL[b].target||""))[0];
+  v.append(el("div",{class:"opts subnav",style:"margin-top:6px"},...ids.map(id=>{const r=dfRisk(DFL[id]);return el("button",{class:"opt mid","aria-pressed":DFP===id?"true":"false",text:PROJS[id].name+(r?" ⚠":""),onclick:()=>{DFP=id;try{localStorage.setItem("silong-dflow",DFP)}catch(e){}redraw()}})}),
+    lead?el("button",{class:"opt mid",text:"+ New",onclick:()=>{DFP="__new";redraw()}}):""));
+  if(DFP==="__new"){v.append(startForm());return}
+  const pid=DFP,c=PROJS[pid];const f=JSON.parse(JSON.stringify(DFL[pid]));f.st=f.st||{};f.areas=f.areas||[];
+  const save=async(msg)=>{try{await dfSave(pid,f);toast(msg||"Saved.");redraw()}catch(err){toast("Not saved – "+(err.code||err.message||"error"))}};
+  const S=dfSteps(f);const cur=S.find(s=>!dfDone(f,s));const nd=S.filter(s=>dfDone(f,s)).length;const left=dfDays(td,f.target);const risk=dfRisk(f);
+  // project header
+  v.append(el("div",{class:"panel",style:"margin:8px 0"},el("div",{style:"font-weight:700;font-size:18px",text:c.name}),
+    el("div",{class:"small",text:`Deliver by ${fd(f.target)} · ${left>=0?left+" days left":(-left)+" days past the target"} · ${nd}/${S.length} steps done`}),
+    el("div",{class:"pbar",style:"margin-top:6px"},el("div",{class:"w",style:`width:${Math.round(nd/Math.max(1,S.length)*100)}%`})),
+    risk?el("div",{style:"margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--late-bg);color:var(--late);font-weight:700",text:`⚠ ${risk.s.n} is ${risk.n} day${risk.n===1?"":"s"} behind – the ${fd(f.target)} submission is at risk.`}):""));
+  // next thing to do
+  if(cur){const x=dfSt(f,cur.k);const nx=el("div",{class:"panel",style:"margin:8px 0;border:2px solid var(--ink)"},el("div",{class:"small",style:"letter-spacing:.05em;font-weight:700",text:"NEXT TO DO"}),
+      el("div",{style:"font-size:18px;font-weight:700;margin:2px 0",text:cur.n}),el("div",{class:"small",text:[x.due?"due "+fd(x.due):"",x.who?"with "+pname(x.who):(cur.gate||cur.areas?"":"not assigned yet")].filter(Boolean).join(" · ")}),el("p",{class:"hint",style:"margin:6px 0",text:cur.h}));
+    if(cur.up)nx.append(el("button",{class:"btn",style:"margin-right:6px",text:"📐 Upload floor plan & name walls",onclick:()=>{WP=pid;dSub="walls";renderDesignStudio()}}));
+    v.append(nx)}else v.append(el("div",{class:"panel",style:"margin:8px 0;text-align:center;font-weight:700",text:"✅ All steps done for this project."}));
+  // the steps
+  S.forEach((s,i)=>{const x=dfSt(f,s.k);const done=dfDone(f,s);const lt=!done&&x.due&&x.due<td;const isCur=cur===s;
+    const d=el("details",{class:"panel",style:"margin:6px 0"+(isCur?";border-left:4px solid var(--ink)":"")+(done?";opacity:.75":"")});if(isCur)d.open=true;
+    const meta=s.areas?`${(f.areas||[]).filter(a=>a.done).length}/${(f.areas||[]).length} areas done`:s.gate?(done?"approved "+fd(x.doneOn||td):"waiting for client"):(x.who?pname(x.who):(s.cons&&x.cons?x.cons:"not assigned"));
+    d.append(el("summary",{style:"display:flex;gap:10px;align-items:center"},el("span",{style:`min-width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;${done?"background:var(--done-bg);color:var(--done)":isCur?"background:var(--ink);color:var(--paper)":"border:1px solid var(--line)"}`,text:done?"✓":String(i+1)}),
+      el("span",{style:"flex:1"},el("div",{style:"font-weight:700",text:s.n+(s.gate?" 🚦":"")+(s.opt?"":"")}),el("div",{class:"small",text:meta})),
+      el("span",{class:"tag"+(done?" ok":lt?" due":""),text:done?"done":lt?`${dfDays(x.due,td)}d late`:x.due?fd(x.due):s.after?"after construction":"—"})));
+    const body=el("div",{style:"margin-top:8px"},el("p",{class:"hint",style:"margin:0 0 6px",text:s.h}));d.append(body);
+    if(s.up)body.append(el("button",{class:"btn",text:"📐 Floor plan & walls",onclick:()=>{WP=pid;dSub="walls";renderDesignStudio()}}));
+    if(s.areas){f.areas.forEach((a,ai)=>{const alt=!a.done&&a.due&&a.due<td;const mineA=a.who===ME;
+        const row=el("div",{class:"mini",style:"display:flex;gap:8px;align-items:center;justify-content:space-between;padding:4px 0;border-top:1px solid var(--line)"},el("span",{style:a.done?"text-decoration:line-through":"",text:`${a.name} – ${a.who?pname(a.who):"not assigned"}`}),el("span",{class:"tag"+(a.done?" ok":alt?" due":""),text:a.done?"done":a.due?(alt?`${dfDays(a.due,td)}d late`:fd(a.due)):"—"}));
+        body.append(row);
+        if(lead){const w=whoSel(a.who,"Area person");const du=el("input",{class:"fin",type:"date","aria-label":"Area due"});du.value=a.due||"";
+          body.append(el("div",{class:"form"},w,du,el("button",{class:"btn",text:"Save",onclick:()=>{f.areas[ai]={...a,who:w.value,due:du.value,man:du.value!==(x.due||"")};save()}}),
+            el("button",{class:"btn",text:a.done?"Undo done":"Done",onclick:()=>{f.areas[ai]={...a,done:!a.done,doneOn:a.done?"":td};save(a.done?"Reopened.":"Marked done.")}}),
+            el("button",{class:"btn",text:"Remove",onclick:()=>{if(!confirm(`Remove “${a.name}”?`))return;f.areas.splice(ai,1);save("Removed.")}})))}
+        else if(mineA&&!a.done)body.append(el("button",{class:"btn",text:`✓ ${a.name} is done`,onclick:()=>{f.areas[ai]={...a,done:true,doneOn:td};save("Marked done.")}}))});
+      if(lead){const an=el("input",{class:"fin",placeholder:"Area or room (e.g. Living – TV wall)","aria-label":"Area"});const aw=whoSel("","Area person");
+        body.append(el("div",{class:"form",style:"margin-top:8px"},an,aw,el("button",{class:"btn main",text:"+ Add area",onclick:()=>{const nm=an.value.trim();if(!nm){an.focus();return}f.areas.push({id:"a"+Date.now(),name:nm,who:aw.value,due:x.due||""});save("Area added.")}})))}}
+    if(s.cons&&lead){const cn=el("input",{class:"fin",placeholder:"Engineering consultant","aria-label":"Consultant"});cn.value=x.cons||"";const se=el("input",{class:"fin",type:"date","aria-label":"Sent"});se.value=x.sent||"";
+      body.append(el("div",{class:"form"},cn,el("label",{class:"small fdate"},"Drawings sent ",se),el("button",{class:"btn",text:"Save consultant",onclick:()=>{f.st[s.k]={...x,cons:cn.value.trim(),sent:se.value};save()}})))}
+    if(lead&&!s.areas){const du=el("input",{class:"fin",type:"date","aria-label":"Due"});du.value=x.due||"";const w=s.gate?null:whoSel(x.who);
+      body.append(el("div",{class:"form"},w||"",el("label",{class:"small fdate"},(s.cons?"Due back ":"Due "),du),el("button",{class:"btn",text:"Save",onclick:()=>{f.st[s.k]={...x,due:du.value,...(w?{who:w.value}:{})};save()}})))}
+    if(!s.areas&&(lead||(!s.gate&&x.who===ME))){if(!done)body.append(el("button",{class:"btn main",style:"margin-top:6px",text:s.gate?"✓ Client approved":"✓ Mark this step done",onclick:()=>{const prev=S.slice(0,i).filter(p=>!dfDone(f,p));if(prev.length&&!confirm(`${prev[0].n} isn’t done yet. Mark this one done anyway?`))return;f.st[s.k]={...x,done:true,doneOn:td,doneBy:ME};save(s.gate?"Client approval recorded.":"Step done.")}}));
+      else if(lead)body.append(el("button",{class:"btn",style:"margin-top:6px",text:"Undo",onclick:()=>{f.st[s.k]={...x,done:false,doneOn:""};save("Reopened.")}}))}
+    if(s.areas&&lead&&f.areas.length&&!done)body.append(el("button",{class:"btn main",style:"margin-top:6px",text:"✓ All perspectives done",onclick:()=>{f.st.persp={...x,done:true,doneOn:td};save("Step done.")}}));
+    v.append(d)});
+  // by person
+  const P=T.filter(t=>t.pid===pid);if(P.length){const bp=el("details",{class:"panel",style:"margin:10px 0"},el("summary",{},el("b",{text:"👥 Who has what on this project"})));
+    const by={};P.forEach(t=>(by[t.who]=by[t.who]||[]).push(t));Object.entries(by).forEach(([w,L])=>{bp.append(el("div",{style:"font-weight:700;margin-top:6px",text:pname(w)}),...L.map(t=>{const lt=t.due&&t.due<td;return el("div",{class:"mini",style:"display:flex;justify-content:space-between"},el("span",{text:t.what}),el("span",{class:"tag"+(lt?" due":""),text:t.due?(lt?`${dfDays(t.due,td)}d late`:fd(t.due)):"—"}))}))});v.append(bp)}
+  // settings
+  if(lead){const st=el("details",{class:"panel",style:"margin:10px 0"},el("summary",{},el("b",{text:"⚙ Deadline, extra steps & time split"})));
+    st.addEventListener("toggle",()=>{if(!st.open||st.children.length>1)return;
+      const sd=el("input",{class:"fin",type:"date"});sd.value=f.start||"";const tg=el("input",{class:"fin",type:"date"});tg.value=f.target||"";const rv=el("input",{class:"fin",type:"number",min:"0"});rv.value=f.review??5;
+      const ck=(t,v0)=>{const i=el("input",{type:"checkbox"});i.checked=!!v0;return [i,el("label",{class:"small",style:"display:flex;gap:8px;align-items:center;margin:4px 0"},i,t)]};
+      const [m1,l1]=ck("MEP & fire safety (consultant)",(f.opt||{}).mep);const [m2,l2]=ck("Building permit set",(f.opt||{}).permit);const [m3,l3]=ck("As-built & occupancy are ours (needs a building permit)",f.asbOurs);
+      const pc={};const grid=el("div",{class:"form"});DFLOW.filter(s=>s.pct).forEach(s=>{const i=el("input",{class:"fin",type:"number",min:"0"});i.value=(f.pct||{})[s.k]??s.pct;pc[s.k]=i;grid.append(el("label",{class:"small fdate"},s.n+" % ",i))});
+      st.append(el("div",{class:"form"},el("label",{class:"small fdate"},"Start ",sd),el("label",{class:"small fdate"},"Deliver by ",tg),el("label",{class:"small fdate"},"Days kept for final review ",rv)),l1,l2,l3,
+        el("div",{class:"small",style:"font-weight:700;margin-top:8px",text:"Share of the time for each step (client approvals get "+DF_GATE_DAYS+" days each)"}),grid,
+        el("button",{class:"btn main",text:"Save and work out the due dates again",onclick:()=>{if(!tg.value){tg.focus();return}if(!confirm("This resets the due dates of every step that isn’t done yet. Continue?"))return;
+          Object.assign(f,{start:sd.value,target:tg.value,review:+rv.value||0,opt:{mep:m1.checked,permit:m2.checked},asbOurs:m3.checked,pct:Object.fromEntries(Object.entries(pc).map(([k,i])=>[k,+i.value||0]))});
+          f.areas=f.areas.map(a=>({...a,man:false}));dfPlan(f);save("Due dates worked out again.")}}),
+        OWNER&&ROLE==="gm"?el("button",{class:"btn",style:"margin-left:6px",text:"Remove this design path",onclick:async()=>{if(!confirm(`Remove the design path for ${c.name}? The project itself stays.`))return;try{await db.collection("dflow").doc(pid).delete();delete DFL[pid];DFP=null;toast("Removed.");redraw()}catch(e){toast("Not removed.")}}}):"")});
+    v.append(st)}
+}
+
 async function renderDesignStudio(){
-  if(!renderDesignStudio._i){renderDesignStudio._i=1;if(DESIGN_ROLES.includes(ROLE)&&dSub==="overview")dSub="myday"}
+  if(!renderDesignStudio._i){renderDesignStudio._i=1;if(dSub==="overview")dSub="path"}
   const my=++RSEQ;const v=$("#view");v.replaceChildren();
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to use Design."}));return}
   const DPs=Object.entries(PROJS).filter(([,c])=>isDesignProj(c));
   v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Design team"}),el("div",{class:"dsub2",text:`${DPs.length} design project${DPs.length===1?"":"s"} · Project Architect + Architect Apprentices`})));
-  const SUBS=[["overview","All projects"],["walls","Floor plan & walls"],["team","By person"],["myday",DESIGN_ROLES.includes(ROLE)?"My daily report":"Daily reports"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
+  const SUBS=[["path","① Start here"],["overview","All projects"],["walls","Floor plan & walls"],["team","By person"],["myday",DESIGN_ROLES.includes(ROLE)?"My daily report":"Daily reports"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
   v.append(el("div",{class:"opts subnav"},...SUBS.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}}))));
-  if(["walls","team","myday"].includes(dSub)){if(dSub==="walls")await renderWalls(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
+  if(["path","walls","team","myday"].includes(dSub)){if(dSub==="path")await renderDesignPath(v,my);else if(dSub==="walls")await renderWalls(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
   if(dSub!=="overview"){if(!DP||!isDesignProj(PROJS[DP]))DP=(DPs[0]||[])[0]||null;if(!DP){v.append(el("p",{class:"empty",text:"No design projects yet."}));return}
     const ps=el("select",{class:"fin","aria-label":"Design project"},...DPs.map(([id,c])=>el("option",{value:id,text:"Design project: "+c.name})));ps.value=DP;ps.onchange=()=>{DP=ps.value;try{localStorage.setItem("silong-dproj",DP)}catch(e){}renderDesignStudio()};v.append(el("div",{class:"form"},ps));
     const D_=await loadDesign(DP);if(my!==RSEQ)return;DDEL=D_.dd;DREP=D_.dr;DINS=D_.di;DVIS=D_.dv;DREV=D_.drev;DPAY=D_.dp;PHPROJ=DP}
@@ -6148,11 +6287,11 @@ async function renderHome(){
   if(["gm","acct"].includes(ROLE)){const P_=cashPosition();const goCash=()=>{acctSub="cash";switchTab("acct")};
     const BG=bankGrid(P_,goCash);
     const stale=P_.banks.filter(b=>b.asOf!==td).length;
-    const cd=el("details",{class:"panel gmcat",id:"homecash"});cd.append(el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"💰 Cash on hand"}),el("span",{style:"margin-left:auto;font-weight:700",text:peso(P_.total)})));
-    gmAccordion(cd);v.append(cd);cd.append(...BG,stale?el("div",{class:"small",style:"margin-top:6px",text:`${stale} bank balance${stale>1?"s":""} not updated today.`}):"",el("div",{class:"opts"},
+    const cd=el("details",{class:"panel gmcat",id:"homecash"});cd.append(el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:"💰 Cash on hand"}),el("span",{style:"margin-left:auto;font-weight:700",text:cashUnlocked()?peso(P_.total):"🔒 PIN"})));
+    gmAccordion(cd);v.append(cd);const cdBody=()=>el("div",{},...BG,stale?el("div",{class:"small",style:"margin-top:6px",text:`${stale} bank balance${stale>1?"s":""} not updated today.`}):"",el("div",{class:"opts"},
       el("button",{class:"btn",text:"🏦 Update bank balances",onclick:goCash}),
       el("button",{class:"btn",text:"➕ Money in / ➖ money out",onclick:goCash}),
-      el("button",{class:"btn",text:"📊 Summary",onclick:()=>{acctSub="summary";switchTab("acct")}})));}
+      el("button",{class:"btn",text:"📊 Summary",onclick:()=>{acctSub="summary";switchTab("acct")}})));let cdB=false;cd.addEventListener("toggle",()=>{if(!cd.open||cdB)return;cdB=true;cd.append(cashLock(cdBody))});}
   {const rb=recvPMBox();if(rb)v.append(rb)}
   const K_=[];const go_=t=>()=>switchTab(t);
   const msgN=Object.values(MSGS).filter(m=>m.to===ROLE&&m.status==="open").length;
