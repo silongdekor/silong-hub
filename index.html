@@ -4730,6 +4730,44 @@ function gapCard(){if(!db||!["gm","hr"].includes(ROLE))return null;const L=[];
     row.append(el("div",{class:"opts"},el("button",{class:"btn main",text:"✓ Was still working – pay",onclick:()=>set(true)}),el("button",{class:"btn",text:"✗ Not working – don't pay",onclick:()=>set(false)})));c.append(row)});
   return c}
 
+// ---------- SUPERVISOR ON DUTY report – filed on the attendance phone with the supervisor's PIN ----------
+function supRepForm(sid,loc,done){const S=STAFF[sid]||{};const td=iso(new Date());const box=el("div",{class:"panel",style:"text-align:left"});
+  const P_=Object.entries(PROJS||{}).filter(([,c])=>c&&c.name&&!c.closed).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+  const ps=el("select",{class:"fin",style:"font-size:18px;padding:8px","aria-label":"Project"},el("option",{value:"",text:"– choose the project –"}),...P_.map(([id,c])=>el("option",{value:id,text:c.name})));
+  const pu=(PUNCH||{})[`${td}_${sid}`]||{};const lastA=(pu.assigns||[]).slice(-1)[0];const here=[loc,lastA&&lastA.to,pu.in&&pu.in.loc].filter(x=>typeof x==="string"&&x);
+  const guess=P_.find(([,c])=>here.some(h=>h.includes(c.name)));if(guess)ps.value=guess[0];
+  const ta=(t,ph,rows)=>{const x=el("textarea",{class:"fin",rows:rows||3,placeholder:ph,style:"font-size:16px"});x.oninput=kioskIdle;return [el("div",{style:"font-weight:700;margin-top:10px",text:t}),x]};
+  const crewBox=el("div",{class:"small",style:"margin:4px 0"});const ticks=new Set();
+  const fillCrew=()=>{crewBox.replaceChildren();const nm=(PROJS[ps.value]||{}).name||"";const here=Object.values(PUNCH||{}).filter(x=>x&&x.date===td&&x.in&&!x.test);
+    const L=here.filter(x=>nm&&((x.in.loc||"").includes(nm)||(x.assigns||[]).some(a=>(a.to||"").includes(nm))));(L.length?L:here).forEach(x=>{const cb=el("input",{type:"checkbox"});cb.checked=!!L.length;if(cb.checked)ticks.add(x.sid);cb.onchange=()=>{kioskIdle();cb.checked?ticks.add(x.sid):ticks.delete(x.sid)};
+      crewBox.append(el("label",{style:"display:flex;gap:8px;align-items:center;font-size:16px;margin:3px 0"},cb,`${x.name||x.sid} – in ${tm(x.in.at)}${x.out?", out "+tm(x.out.at):""}`))});if(!here.length)crewBox.textContent="Nobody has timed in today yet."};
+  ps.onchange=()=>{kioskIdle();ticks.clear();fillCrew()};fillCrew();
+  const [l1,work]=ta("✅ Work done today","What was finished or worked on – area and activity",4),[l2,prob]=ta("⚠ Problems / delays","Blocked work, missing materials, client changes, weather…"),[l3,mat]=ta("🧱 Materials / tools needed","What and how much, and by when"),
+    [l4,safe]=ta("🦺 Safety / incidents","Write 'None' if nothing happened",2),[l5,tom]=ta("📅 Plan for tomorrow","Who does what"),[l6,crewNote]=ta("👷 Other crew / subcon on site","Names not in the list above, subcontractors and how many",2);
+  const ph=el("input",{type:"file",accept:"image/*",multiple:true,class:"fin"});ph.onchange=kioskIdle;
+  const out=el("div",{style:"font-size:16px;margin-top:8px"});
+  const send=el("button",{class:"btn main",style:"width:100%;font-size:22px;padding:16px;margin-top:10px",text:"📤 Send supervisor report",onclick:async()=>{kioskIdle();
+    if(!ps.value){out.textContent="Choose the project first.";return}if(!work.value.trim()){out.textContent="Write the work done today.";return}
+    send.disabled=true;out.textContent="Saving photos…";const pid=ps.value,pn=PROJS[pid].name;const photos=[];
+    try{for(const f of [...ph.files].slice(0,8)){const data=await compress(f,`SUPERVISOR REPORT · ${pn} · ${S.name||""} · ${new Date().toLocaleString("en-GB",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}`);photos.push(await saveAttachment({name:"site.jpg",type:"image/jpeg",data}))}
+      const crew=[...ticks].map(x=>(STAFF[x]||{}).name||x);
+      const rec={date:td,pid,project:pn,sid,name:S.name||"",at:Date.now(),crew,crewNote:crewNote.value.trim(),work:work.value.trim(),prob:prob.value.trim(),mat:mat.value.trim(),safety:safe.value.trim(),tomorrow:tom.value.trim(),photos};
+      await db.collection("supreps").doc(`${td}_${pid}_${sid}`).set(rec);
+      const body=`${pn} · ${fd(td)} · by ${S.name||""}\nCrew (${crew.length}): ${crew.join(", ")||"–"}${rec.crewNote?"\nAlso: "+rec.crewNote:""}\n\nWork done: ${rec.work}${rec.prob?"\nProblems: "+rec.prob:""}${rec.mat?"\nMaterials needed: "+rec.mat:""}${rec.safety?"\nSafety: "+rec.safety:""}${rec.tomorrow?"\nTomorrow: "+rec.tomorrow:""}${photos.length?`\n📷 ${photos.length} photo${photos.length>1?"s":""} – see Home → Supervisor reports`:""}`;
+      for(const to of ["gm","head","pmc"]){try{await db.collection("messages").doc("m"+Date.now()+to).set({project:pid,projName:pn,type:"update",to,from:"kiosk",fromId:"",subject:`📋 Supervisor report – ${pn} – ${S.name||""}`,body,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(e){}}
+      toast("Supervisor report sent.");done&&done()}catch(e){out.textContent="Not sent – check the signal and try again.";send.disabled=false}}});
+  box.append(el("b",{style:"font-size:20px",text:"📋 Supervisor on duty – site report"}),el("div",{class:"small",text:`${S.name||""} · ${fd(td)}`}),el("div",{style:"font-weight:700;margin-top:10px",text:"🏗 Project"}),ps,
+    el("div",{style:"font-weight:700;margin-top:10px",text:"👷 Crew present (from today's time ins – untick anyone not with you)"}),crewBox,...l6?[l6,crewNote]:[],l1,work,l2,prob,l3,mat,l4,safe,l5,tom,el("div",{style:"font-weight:700;margin-top:10px",text:"📷 Site photos (up to 8)"}),ph,send,out);
+  return box}
+function supRepCard(){if(!db||!["gm","head","pmc","pmd","hr"].includes(ROLE))return null;const c=el("div",{class:"panel",style:"margin:10px 0"});const td=iso(new Date());
+  (async()=>{let L=[];try{const q=await db.collection("supreps").where("date",">=",addD(td,-2)).get();L=q.docs.map(d=>d.data())}catch(e){}if(!L.length){c.remove();return}
+    L.sort((a,b)=>b.at-a.at);c.append(el("b",{text:`📋 Supervisor reports (last 3 days: ${L.length})`}));
+    L.forEach(r=>{const d=el("details",{style:"margin-top:6px"},el("summary",{},el("b",{text:r.project}),` · ${fd(r.date)} · ${r.name} · crew ${(r.crew||[]).length}`));
+      const ln=(t,x)=>x?el("div",{class:"small",style:"margin-top:4px"},el("b",{text:t+": "}),x):"";
+      d.append(ln("Crew",(r.crew||[]).join(", ")+(r.crewNote?" · "+r.crewNote:"")),ln("Work done",r.work),ln("Problems",r.prob),ln("Materials needed",r.mat),ln("Safety",r.safety),ln("Tomorrow",r.tomorrow),
+        (r.photos||[]).length?el("div",{class:"opts tight"},...r.photos.map((id,i)=>el("button",{class:"btn",style:"padding:2px 8px",text:`📷 ${i+1}`,onclick:()=>openAttach(id)}))):"");c.append(d)})})();
+  return c}
+
 function delivView(S){
   const out=[];const td=iso(new Date());const can=["gm","head","pmd","arch"].includes(ROLE);
   S.phases.forEach(ph=>{const box=el("div",{});
@@ -5626,6 +5664,9 @@ function staffProfile(sid){const s=STAFF[sid];const out=[];if(!s)return out;cons
   out.push(el("div",{class:"opts"},el("button",{class:"btn",text:"‹ All staff",onclick:()=>{hrStaff=null;renderHR()}})));
   if(["gm","hr","acct"].includes(ROLE)){const pi=el("input",{class:"fin",type:"tel",inputmode:"numeric",maxlength:"4",placeholder:"4 digits",style:"max-width:120px"});const o=el("span",{class:"small"});
     out.push(el("div",{class:"panel"},el("b",{text:"🕒 Attendance kiosk PIN"}),el("div",{class:"small",text:s.pinH?"PIN is set. Type a new one to reset it.":"No PIN yet – set one so this person can time in on the wall tablet."}),el("div",{class:"form"},pi,el("button",{class:"btn main",text:s.pinH?"Reset PIN":"Set PIN",onclick:async()=>{if(!/^\d{4}$/.test(pi.value)){o.textContent="Use exactly 4 numbers.";return}try{await db.collection("staff").doc(sid).set({...STAFF[sid],pinH:await pinHash(sid,pi.value)});o.textContent=`✓ PIN saved. Tell ${s.name.split(" ")[0]} privately.`;pi.value=""}catch(e){o.textContent="Not saved."}}}),o)))}
+  if(["gm","hr","head","pmc"].includes(ROLE)){const cb=el("input",{type:"checkbox"});cb.checked=!!s.supervisor;const so=el("span",{class:"small"});
+    cb.onchange=async()=>{try{await db.collection("staff").doc(sid).set({...STAFF[sid],supervisor:cb.checked});STAFF[sid]={...STAFF[sid],supervisor:cb.checked};so.textContent=cb.checked?" ✓ Can file supervisor reports with their PIN.":" Removed."}catch(e){so.textContent=" Not saved.";cb.checked=!cb.checked}};
+    out.push(el("div",{class:"panel"},el("b",{text:"📋 Supervisor on duty"}),el("label",{style:"display:flex;gap:8px;align-items:center;margin-top:6px"},cb,el("span",{text:"Allowed to file the Supervisor site report on the attendance phone (with their PIN)"})),so))}
   const ne=nextEval(sid);const E=staffEvals(sid);
   out.push(el("div",{class:"panel"},el("div",{class:"sumt",style:"font-size:26px",text:s.name}),el("div",{class:"small",text:`${s.position||""} · ${HRCAT[s.category||"office"]} · ${s.status||"status not set"}${s.project?" · "+s.project:""}`}),
     (()=>{const pi=posInfo(s.position);const lastMove=(s.moves||[]).slice(-1)[0];const since=lastMove?lastMove.date:s.start;const mo=since?Math.max(0,Math.round(diff(since,td)/30.4)):0;
@@ -6075,7 +6116,7 @@ async function renderHome(){
   const nm=(NAMES[ME]||(ACCESS[ME]||{}).name||"").split(" ")[0];
   v.append(el("div",{class:"hello"},el("div",{class:"t",text:`Good ${new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening"}${ROLE==="gm"?", AAT-Gen Manager":nm?", "+nm:""}`}),el("div",{class:"s",text:`${ROLES[ROLE]} · ${fmt(td,{weekday:"long",day:"numeric",month:"long"})}`})));
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to see your dashboard."}));return}
-  {const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const gpc=gapCard();if(gpc)v.append(gpc);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
+  {const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const gpc=gapCard();if(gpc)v.append(gpc);const src=supRepCard();if(src)v.append(src);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
   {const dh=designHomeCard();if(dh)v.append(dh)}
   if(["gm","head","pmc","pmd","pm","sup","hr"].includes(ROLE)){const wb=whereBoard();if(wb)v.append(wb)}
   {const pc=planCard();if(pc)v.append(pc)}
@@ -6617,7 +6658,7 @@ function renderKiosk(){RSEQ++;tab="kiosk";const v=$("#view");v.replaceChildren()
       if(hasOut&&!hasT("travelEnd"))B.push(optTravel("🚌 Travelling home after work? Tap here","🏁 TRAVEL END – arrived back (selfie)","travelEnd"));
       if(hasT("travelEnd"))B.push(el("div",{class:"small",style:"margin-top:6px",text:`🏁 Travel ended ${p.travelEnd?tm(p.travelEnd.at):"(saving)"}`}));return B})()),
     isNightP&&!/project manager|\bPM\b|site engineer|head of/i.test(s.position||"")?el("div",{class:"small",style:"margin-top:8px;font-weight:700",text:"🌙 Night shift – tap TIME OUT at the end of your shift."}):isNightP?el("div",{},el("div",{class:"small",style:"margin-top:8px;font-weight:700",text:`🌙 Night shift – check in every 2 hours. Done: ${(p.checks||[]).length}${(p.checks||[]).length?" (last "+tm(p.checks[p.checks.length-1].at)+")":""}`}),shot("📍 2-HOUR CHECK-IN (selfie)","check",true)):"",out,
-    el("div",{class:"opts",style:"margin-top:10px"},...(hasIn&&!hasOut?[el("button",{class:"btn",style:"font-size:18px",text:"🔁 Change assignment",onclick:()=>{window.KASK={sid,at:Date.now()};window.KOK={sid,at:Date.now()};renderKiosk()}})]:[]),el("button",{class:"btn",style:"font-size:18px",text:"📝 Apply for leave",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx"});b.append(leaveForm(sid,()=>{toast("Leave request sent to HR.");KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b)}}),
+    el("div",{class:"opts",style:"margin-top:10px"},...(hasIn&&!hasOut?[el("button",{class:"btn",style:"font-size:18px",text:"🔁 Change assignment",onclick:()=>{window.KASK={sid,at:Date.now()};window.KOK={sid,at:Date.now()};renderKiosk()}})]:[]),(STAFF[sid]||{}).supervisor?el("button",{class:"btn main",style:"font-size:18px",text:"📋 Supervisor report",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx",style:"margin-top:8px"});b.append(supRepForm(sid,curLoc(),()=>{KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b);b.scrollIntoView({behavior:"smooth"})}}):"",el("button",{class:"btn",style:"font-size:18px",text:"📝 Apply for leave",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx"});b.append(leaveForm(sid,()=>{toast("Leave request sent to HR.");KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b)}}),
       el("button",{class:"btn",style:"font-size:18px",text:"📅 My attendance",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx",style:"margin-top:8px"});const m=td.slice(0,7);
         b.append(el("div",{class:"small",style:"font-weight:700",text:silText(sid)}));
         for(let d=m+"-01";d<=td;d=addD(d,1)){const x=dayStatus(sid,d);const pp=PUNCH[d+"_"+sid]||{};if(!x.k&&!pp.in)continue;b.append(el("div",{class:"small",text:`${fmt(d,{weekday:"short",day:"numeric"})}: ${x.k?(AST[x.k]||[x.k])[0]:""}${pp.in?" · in "+tm(pp.in.at):""}${pp.out?" · out "+tm(pp.out.at):""}`}))}panel.append(b)}}),back));
