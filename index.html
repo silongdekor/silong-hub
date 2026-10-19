@@ -3114,7 +3114,6 @@ async function renderProjects(){
     gmAccordion(d);d.append(el("div",{style:"margin-top:8px"},...body,gmCloser(d)));if(id===P&&Object.keys(PROJS).length===1)d.open=true;rowsOut.push(d)}
   host.replaceChildren(...rowsOut);
   const more=el("div",{style:"margin-top:14px"},el("div",{class:"small",style:"font-weight:700;letter-spacing:.04em;margin-bottom:6px",text:"MORE"}));
-  if((TABS_FOR[ROLE]||[]).includes("design"))more.append(el("button",{class:"btn",style:"width:100%;text-align:left;margin-bottom:8px",text:"✏️ Design studio – all design work",onclick:()=>switchTab("design")}));
   if((TABS_FOR[ROLE]||[]).includes("setup"))more.append(el("button",{class:"btn",style:"width:100%;text-align:left",text:"➕ Start a new project",onclick:()=>switchTab("setup")}));
   v.append(more);
 }
@@ -6126,7 +6125,7 @@ async function renderHome(){
   const nm=(NAMES[ME]||(ACCESS[ME]||{}).name||"").split(" ")[0];
   v.append(el("div",{class:"hello"},el("div",{class:"t",text:`Good ${new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening"}${ROLE==="gm"?", AAT-Gen Manager":nm?", "+nm:""}`}),el("div",{class:"s",text:`${ROLES[ROLE]} · ${fmt(td,{weekday:"long",day:"numeric",month:"long"})}`})));
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to see your dashboard."}));return}
-  {const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const gpc=gapCard();if(gpc)v.append(gpc);const src=supRepCard();if(src)v.append(src);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
+  {const ar=accessReqCard();if(ar)v.append(ar);const mk=myKioskCard();if(mk)v.append(mk);const nr=nightReportCard();if(nr)v.append(nr);const wc=workerCard();if(wc)v.append(wc);const dw=dayWorkerCard();if(dw)v.append(dw);const rsc=rosterCard();if(rsc)v.append(rsc);const otc=otApproveCard();if(otc)v.append(otc);const gpc=gapCard();if(gpc)v.append(gpc);const src=supRepCard();if(src)v.append(src);const dcc=dayCheckCard();if(dcc)v.append(dcc);const rc=reviewCard();if(rc)v.append(rc)}
   {const dh=designHomeCard();if(dh)v.append(dh)}
   if(["gm","head","pmc","pmd","pm","sup","hr"].includes(ROLE)){const wb=whereBoard();if(wb)v.append(wb)}
   {const pc=planCard();if(pc)v.append(pc)}
@@ -7726,7 +7725,7 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   if(!db){applyRole();return}
   if(OWNER){try{const o_=await db.doc("meta/owner").get();if(o_&&o_.exists){if((o_.data()||{}).id!==ME){OWNER=false;ROLE="none"}}else await db.doc("meta/owner").set({id:ME,at:Date.now()})}catch(e){}}
   db.collection("access").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});ACCESS=n;applyRole();if(tab==="gm")refresh("gm")},()=>{});
-  db.collection("people").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});PEOPLE=n;try{gmBadge()}catch(e){}if(tab==="noaccess")renderNoAccess();if(tab==="gm")refresh("gm")},()=>{});
+  db.collection("people").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});PEOPLE=n;try{gmBadge()}catch(e){}if(tab==="home"&&ROLE==="gm"&&!(document.activeElement&&document.activeElement.matches("input,select,textarea")))try{renderHome()}catch(e){}if(tab==="noaccess")renderNoAccess();if(tab==="gm")refresh("gm")},()=>{});
   {db.collection("quotes").onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});QUOTES=n;refresh("bill")},()=>{});db.collection("invoices").onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});INVS=n;refresh("bill")},()=>{});db.doc("billing/settings").onSnapshot(d=>{BSET=(d&&d.exists&&d.data())||{}},()=>{})}
   db.doc("hr/settings").onSnapshot(d=>{HRSET=(d&&d.exists&&d.data())||{};if(tab==="hr"&&hrSub==="rules"&&!(document.activeElement&&document.activeElement.matches("input,textarea")))renderHR()},()=>{});
   window.HRSUBF=c_=>db.collection(c_).onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});if(c_==="punch"){PUNCH=n;if(isKiosk()){if(!KSEL&&!(document.activeElement&&document.activeElement.matches("input")))renderKiosk();return}if(tab==="home"&&document.getElementById("whereboard")){renderHome();return}if(tab!=="hr")return}else if(c_==="duty"){const mine=o=>JSON.stringify(Object.entries(o).filter(([,x])=>x.uid===ME));const ch=mine(n)!==mine(DUTY);DUTY=n;if(ch&&tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderHome();scrollTo(0,y)}if(tab!=="hr")return}else if(c_==="otapprove"){OTAPP=n;if(tab==="home"&&["head","pmc"].includes(ROLE)&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderHome()}catch(e){}}else if(c_==="aplan"){APLAN=n;if(isKiosk())return;if(tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;try{renderHome()}catch(e){}scrollTo(0,y)}return}else if(c_==="paycfg")PAYCFG=n;else if(c_==="memos")MEMOS=n;else if(c_==="staff")STAFF=n;else if(c_==="attend")ATTEND=n;else if(c_==="leaves")LEAVES=n;else if(c_==="disc")DISC=n;else if(c_==="evals")EVALS=n;else if(c_==="pnotes")PNOTES=n;else if(c_==="mnotices")MNOT=n;else COMP=n;hrBadge();if(tab==="hr"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderHR();scrollTo(0,y)}},()=>{});
@@ -7790,6 +7789,15 @@ async function cashPinReset(){if(ROLE!=="gm"){toast("Only the AAT-Gen Manager ca
   const who=prompt("Reset whose PIN? Type the number:\n"+L.map((x,i)=>`${i+1}. ${x.name||(PEOPLE[x.id]||{}).name||x.id}`).join("\n"));const x=L[(+who||0)-1];if(!x)return;
   if(!confirm(`Reset the Cash on hand PIN of ${x.name||x.id}? They will set a new one next time.`))return;
   try{await db.collection("cashpin").doc(x.id).delete();if(x.id===ME)CASHOK=0;toast("PIN reset.")}catch(e){toast("Not reset – check the signal.")}}
+
+// ---------- Access requests at the TOP of the GM Home ----------
+function accessReqCard(){if(ROLE!=="gm"||!OWNER)return null;const W=accessWaiting();if(!W.length)return null;
+  const b=el("div",{class:"panel attn",style:"margin-top:12px"},el("b",{style:"font-size:18px",text:`🔑 ${W.length} ${W.length>1?"people are":"person is"} asking to use Silong Hub`}),el("div",{class:"small",style:"margin:4px 0 8px",text:"Check the role, then tap Approve. Decline removes the request."}));
+  W.forEach(id=>{const pr=PEOPLE[id]||{};const sel=el("select",{class:"fin","aria-label":"Role"},...Object.entries(ROLES).filter(([k])=>k!=="gm").map(([k,l])=>el("option",{value:k,text:l})));sel.value=pr.role||"pm";
+    b.append(el("div",{class:"lrow",style:"flex-wrap:wrap"},el("span",{},el("b",{text:pr.name||"Unnamed"}),el("div",{class:"small",text:`Asked for: ${ROLES[pr.role]||"?"}${pr.at?" · "+when(pr.at):""}`})),el("span",{class:"form",style:"padding:0"},sel,
+      el("button",{class:"btn main",text:"Approve",onclick:async ev=>{ev.target.disabled=true;try{await db.collection("access").doc(id).set({role:sel.value,name:pr.name||"",at:Date.now()});toast(`${pr.name||"They"} can now use Silong Hub as ${ROLES[sel.value]}.`);renderHome()}catch(e){toast("Not saved.");ev.target.disabled=false}}}),
+      el("button",{class:"btn",text:"Decline",onclick:async ev=>{if(!confirm(`Remove ${pr.name||"this"} request?`))return;ev.target.disabled=true;try{await db.collection("people").doc(id).delete();toast("Request removed.");renderHome()}catch(e){toast("Not removed.");ev.target.disabled=false}}}))))});
+  return b}
 </script>
 </body>
 </html>
