@@ -648,9 +648,9 @@ const TABS_FOR={gm:["home","proj","est","gm","hr","roster","head","design","sche
   pm:["home","report","list","sched","mat","msg"],sup:["home","report","list","sched","mat","msg"],
   buy:["home","myproj","plan","buy","msg"],acct:["home","acct","recv","bill","hr","msg"],hr:["home","hr","roster","msg"],kiosk:["kiosk"]};
 // what shows in the tab bar (everything in TABS_FOR stays reachable)
-const TABS_BAR={arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],buy:["home","buy","plan","msg","myproj"],gm:["home","proj","est","buy","acct","bill","hr","msg"],acct:["home","acct","bill","hr","msg"],
+const TABS_BAR={arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],buy:["home","buy","plan","msg","myproj"],gm:["home","proj","design","est","buy","acct","bill","hr","msg"],acct:["home","acct","bill","hr","msg"],
   head:["home","head","proj","report","buy","design","bill","roster","msg"],pmc:["home","head","proj","est","report","msg"]};
-const TAB_PARENT={roster:"hr",gm:"home",head:"home",sched:"proj",docs:"proj",list:"proj",plan:"proj",design:"proj",mat:"proj",report:"proj",setup:"proj",recv:"acct",fab:"proj",permits:"proj"};
+const TAB_PARENT={roster:"hr",gm:"home",head:"home",sched:"proj",docs:"proj",list:"proj",plan:"proj",mat:"proj",report:"proj",setup:"proj",recv:"acct",fab:"proj",permits:"proj"};
 const TAB_NAME={home:"Home",proj:"Projects",acct:"Accounts",hr:"HR"};
 function barTab(t){const B=TABS_BAR[ROLE];if(!B||B.includes(t))return t;return TAB_PARENT[t]||t}
 function updSubbar(){let sb=document.getElementById("subbar");const vw=document.getElementById("view");if(!vw)return;
@@ -5240,7 +5240,17 @@ async function crCanvases(D,no,single){
   return pages;
 }
 const toBlob=(cv,type,q)=>new Promise(r=>cv.toBlob(r,type,q));
+function pdfSheet(files){return new Promise(res=>{const old=document.getElementById("pdfsheet");if(old)old.remove();
+  const urls=files.map(f=>URL.createObjectURL(f));let done=false;const fin=r=>{if(done)return;done=true;res(r)};
+  const close=()=>{ov.remove();setTimeout(()=>urls.forEach(u=>URL.revokeObjectURL(u)),60000);fin("cancelled")};
+  const ov=el("div",{id:"pdfsheet",style:"position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-end;justify-content:center"});
+  const box=el("div",{class:"panel",style:"width:100%;max-width:520px;margin:0;border-radius:16px 16px 0 0;padding:18px"});
+  box.append(el("b",{style:"font-size:18px",text:"📄 PDF ready"}),el("div",{class:"small",style:"margin:4px 0 12px;word-break:break-all",text:files.map(f=>f.name).join(", ")}));
+  files.forEach((f,i)=>box.append(el("a",{class:"btn main",href:urls[i],download:f.name,target:"_blank",rel:"noopener",style:"display:block;text-align:center;font-size:18px;padding:14px;margin-bottom:8px;text-decoration:none",text:files.length>1?`⬇ Open / save ${f.name}`:"⬇ Open / save PDF",onclick:()=>{toast("On iPhone: tap the share icon in the PDF → Save to Files.");fin("saved")}})));
+  if(navigator.canShare&&navigator.canShare({files}))box.append(el("button",{class:"btn",style:"width:100%;font-size:17px;padding:12px;margin-bottom:8px",text:"📤 Send to Viber / email",onclick:async()=>{try{await navigator.share({files,title:files[0].name});ov.remove();fin("shared")}catch(e){}}}));
+  box.append(el("button",{class:"btn",style:"width:100%",text:"Close",onclick:close}));ov.onclick=e=>{if(e.target===ov)close()};ov.append(box);document.body.append(ov)})}
 async function saveFiles(files){
+  if(!window.claude&&files.every(f=>f.type==="application/pdf"))return pdfSheet(files);
   try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:files[0].name});return "shared"}}catch(e){if(e&&e.name==="AbortError")return "cancelled"}
   const dl=await window.claude.use("downloads").catch(()=>null);if(!dl){toast("Saving files isn't available here.");return "none"}
   for(const f of files){try{await dl.save({filename:f.name,data:f})}catch(e){if(e&&e.code==="declined")return "cancelled";throw e}}return "saved";
@@ -7731,6 +7741,20 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   db.collection("messages").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});MSGS=n;msgBadge();if(tab==="msg"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderMsg();if(tab==="buy")refresh("orders");if(tab==="gm")refresh("gm")},()=>{});
   subscribe();
 })();
+
+// ---------- universal BACK: phone back gesture/button + floating ‹ Back ----------
+(function(){if(window.__hubBack)return;window.__hubBack=1;let popping=false,depth=0;
+  const _sw=switchTab;switchTab=function(t){const before=tab;_sw.apply(this,arguments);try{if(!popping&&tab&&tab!==before&&!isKiosk()){history.pushState({hubTab:tab},"");depth++}}catch(e){}setTimeout(upd,60)};
+  try{history.replaceState({hubTab:tab||"home"},"")}catch(e){}
+  const inPage=()=>{const v=document.getElementById("view");if(!v)return null;return [...v.querySelectorAll("button")].find(b=>b.offsetParent&&/^\s*(‹|←)\s*(Back|All |Choose another)/.test(b.textContent))||null};
+  window.addEventListener("popstate",e=>{const st=e.state||{};depth=Math.max(0,depth-1);const ip=inPage();if(ip){ip.click();try{history.pushState({hubTab:tab},"");depth++}catch(_){}setTimeout(upd,60);return}
+    const home=(TABS_FOR[ROLE]||["home"])[0];const want=(!st.hubTab||st.hubTab==="noaccess"||!canTab(st.hubTab))?home:st.hubTab;if(want!==tab){popping=true;try{switchTab(want)}finally{popping=false}}setTimeout(upd,60)});
+  const btn=document.createElement("button");btn.id="hubback";btn.className="noprint";btn.textContent="‹ Back";
+  btn.style.cssText="position:fixed;left:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:9000;display:none;padding:10px 16px;border-radius:22px;border:1px solid var(--line,#ccc);background:var(--card,#fff);color:var(--ink,#111);font-size:16px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.18)";
+  btn.onclick=()=>{const ip=inPage();if(ip){ip.click();setTimeout(upd,60);return}if(depth>0){history.back();return}const home=(TABS_FOR[ROLE]||["home"])[0];if(tab!==home)switchTab(home)};
+  function upd(){if(!document.body.contains(btn))document.body.append(btn);try{const hs=history.state||{};if((!hs.hubTab||hs.hubTab==="noaccess")&&tab&&tab!=="noaccess")history.replaceState({hubTab:tab},"")}catch(e){}let show=false;try{const home=(TABS_FOR[ROLE]||["home"])[0];show=!isKiosk()&&ROLE!=="none"&&(tab!==home||!!inPage())&&!document.getElementById("pdfsheet")&&!document.getElementById("pgsheet")}catch(e){}btn.style.display=show?"":"none"}
+  new MutationObserver(()=>{clearTimeout(window.__hbT);window.__hbT=setTimeout(upd,120)}).observe(document.body,{childList:true,subtree:true});
+  setTimeout(upd,800)})();
 </script>
 </body>
 </html>
