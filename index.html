@@ -579,7 +579,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-10-21u"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-10-22a"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -1427,10 +1427,10 @@ function projPayables0(D,pid){
 function ledgerEntries(scope){return Object.entries(LEDGER).filter(([,e])=>scope==="company"||e.project===P||(e.project==="company"&&(e.kind==="payroll"||e.kind==="preq")))}
 function ledgerPayables(scope){return ledgerPayables0(scope).filter(p=>!acArchived(p))}
 function ledgerPayables0(scope){
-  return ledgerEntries(scope).filter(([,e])=>e.kind!=="advance"&&e.kind!=="pdc"&&!(e.kind==="preq"&&(e.status==="declined"||e.status==="forgm"))).map(([id,e])=>e.kind==="preq"?{key:"L-"+id,lid:id,due:e.due,amt:+e.amount||0,budget:e.origAmount!=null?e.origAmount:undefined,adjNote:e.editNote||"",payee:e.payee,type:`Payment request${e.urgent&&e.status!=="paid"&&!e.paidOn?" – URGENT":""}${e.status==="hold"?" (on hold)":""}`,ref:e.planned?e.category:"not planned",what:e.desc+" · requested by "+(e.requestedBy||e.byName||ROLES[e.byRole]||"–"),cat:e.category,unplanned:!e.planned,urgent:!!e.urgent,attach:e.attach||[],project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef}:null}:e.kind==="draw"?{key:"L-"+id,lid:id,due:e.due,amt:+e.amount||0,payee:e.poolName,type:"Allowance request",ref:e.covers||"",what:e.remarks?"📝 "+e.remarks:"",cat:e.category,project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef}:null}:({key:"L-"+id,lid:id,due:e.due,amt:Math.round((+(e.kind==="payroll"?e.net:e.amount)||0)*100)/100,
+  return ledgerEntries(scope).filter(([,e])=>e.kind!=="advance"&&e.kind!=="pdc"&&!(e.kind==="preq"&&(e.status==="declined"||e.status==="forgm"))).map(([id,e])=>e.kind==="preq"?{key:"L-"+id,lid:id,due:e.due,amt:+e.amount||0,budget:e.origAmount!=null?e.origAmount:undefined,adjNote:e.editNote||"",payee:e.payee,type:`Payment request${e.urgent&&e.status!=="paid"&&!e.paidOn?" – URGENT":""}${e.status==="hold"?" (on hold)":""}`,ref:e.planned?e.category:"not planned",what:e.desc+" · requested by "+(e.requestedBy||e.byName||ROLES[e.byRole]||"–"),cat:e.category,unplanned:!e.planned,urgent:!!e.urgent,attach:e.attach||[],project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef,bank:e.paidBank||null,paidAmt:e.paidAmt,at:e.paidAt}:null}:e.kind==="draw"?{key:"L-"+id,lid:id,due:e.due,amt:+e.amount||0,payee:e.poolName,type:"Allowance request",ref:e.covers||"",what:e.remarks?"📝 "+e.remarks:"",cat:e.category,project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef,bank:e.paidBank||null,paidAmt:e.paidAmt,at:e.paidAt}:null}:({key:"L-"+id,lid:id,due:e.due,amt:Math.round((+(e.kind==="payroll"?e.net:e.amount)||0)*100)/100,
     payee:e.kind==="payroll"?(e.ptype==="gov"?"SSS / PhilHealth / Pag-IBIG":e.ptype==="tax"?"BIR":({regular:"Silong regular crew",project:"Project-based crew",both:"Regular + project crew"}[e.crew]||"Payroll")):e.payee,
     type:e.kind==="payroll"?PTYPES[e.ptype]||"Payroll":e.category,ref:e.kind==="payroll"?(e.period||""):(e.ref||""),what:e.kind==="payroll"?`${e.headcount?e.headcount+" people · ":""}${projName(e.project)}`:(e.desc||""),
-    cat:e.kind==="payroll"?(["gov","tax"].includes(e.ptype)?"Government remittances":"Payroll"):e.category,sc:e.sc||"",budget:e.planKey?payplanOf(e.project||BARN)[e.planKey.slice(3)]:undefined,project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef}:null}))}
+    cat:e.kind==="payroll"?(["gov","tax"].includes(e.ptype)?"Government remittances":"Payroll"):e.category,sc:e.sc||"",budget:e.planKey?payplanOf(e.project||BARN)[e.planKey.slice(3)]:undefined,project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef,bank:e.paidBank||null,paidAmt:e.paidAmt,at:e.paidAt}:null}))}
 async function scopeData(){
   if(acctScope==="project"){const D={reports,ORD:ORDERS,PD:PAID};return {pay:[...projPayables(D,P),...ledgerPayables("project")],D:{[P]:D}}}
   if(Date.now()-ALLCACHE.at>20000||!ALLCACHE.data[P]){const out={};for(const id of Object.keys(PROJS))out[id]=await loadProjectData(id);ALLCACHE={at:Date.now(),data:out}}
@@ -1564,14 +1564,17 @@ async function setActual(p,amount,note){
   const nv={...(D.PD||{}),[p.key]:{...prev,adj:+amount,adjNote:note||"",adjOn:iso(new Date())}};await db.doc(pdPath(p.project)).set(nv);if(p.project!==P&&ALLCACHE.data[p.project])ALLCACHE.data[p.project].PD=nv;
 }
 async function undoPaid(p,why){
-  if(p.src==="ledger"){const e=LEDGER[p.lid]||{};await db.collection("ledger").doc(p.lid).set({...e,paidOn:null,paidRef:null,status:"reversed",undoReason:why,undoAt:Date.now()})}
-  else{const D=(p.project===P)?{PD:PAID}:(ALLCACHE.data[p.project]||{PD:{}});const prev=(D.PD||{})[p.key]||{};const nv={...(D.PD||{}),[p.key]:{...prev,on:null,ref:null,undone:why,undoAt:Date.now()}};await db.doc(pdPath(p.project)).set(nv);if(p.project!==P&&ALLCACHE.data[p.project])ALLCACHE.data[p.project].PD=nv}
+  if(p.src==="ledger"){const e=LEDGER[p.lid]||{};await db.collection("ledger").doc(p.lid).set({...e,paidOn:null,paidRef:null,paidBank:null,status:"reversed",undoReason:why,undoAt:Date.now()});if(e.paidBank)await bankMinus(e.paidBank,-(+e.paidAmt||+e.amount||0))}
+  else{const D=(p.project===P)?{PD:PAID}:(ALLCACHE.data[p.project]||{PD:{}});const prev=(D.PD||{})[p.key]||{};if(prev.bank&&prev.on)await bankMinus(prev.bank,-(+prev.paidAmt||+p.amt||0));const nv={...(D.PD||{}),[p.key]:{...prev,on:null,ref:null,bank:null,undone:why,undoAt:Date.now()}};await db.doc(pdPath(p.project)).set(nv);if(p.project!==P&&ALLCACHE.data[p.project])ALLCACHE.data[p.project].PD=nv}
 }
-async function markPaid(p,ref,actual){
+async function markPaid(p,ref,actual,bank){
   const prev=(p.project===P?PAID:((ALLCACHE.data[p.project]||{}).PD||{}))[p.key]||{};
-  const val={...prev,on:iso(new Date()),ref};if(actual!=null&&!isNaN(actual))val.actual=+actual;
-  if(p.src==="ledger")await db.collection("ledger").doc(p.lid).update({paidOn:val.on,paidRef:ref,status:"paid",...(actual!=null&&!isNaN(actual)&&Math.abs(actual-p.amt)>0.005?{amount:+actual,budgetAmount:p.amt}:{}),updatedAt:Date.now()});
+  const paidAmt=(actual!=null&&!isNaN(actual)&&+actual>0)?+actual:(+p.amt||0);
+  if(bank){const bn=bankNameOf(bank);if(bn)ref=`${ref} · from ${bn}`}
+  const val={...prev,on:iso(new Date()),ref,at:Date.now(),bank:bank||null,paidAmt};if(actual!=null&&!isNaN(actual))val.actual=+actual;
+  if(p.src==="ledger")await db.collection("ledger").doc(p.lid).update({paidOn:val.on,paidRef:ref,paidAt:val.at,paidBank:bank||null,paidAmt,status:"paid",...(actual!=null&&!isNaN(actual)&&Math.abs(actual-p.amt)>0.005?{amount:+actual,budgetAmount:p.amt}:{}),updatedAt:Date.now()});
   else{const D=(p.project===P)?{PD:PAID}:(ALLCACHE.data[p.project]||{PD:{}});const nv={...(D.PD||{}),[p.key]:val};await db.doc(pdPath(p.project)).set(nv);if(p.project!==P&&ALLCACHE.data[p.project])ALLCACHE.data[p.project].PD=nv}
+  if(bank)await bankMinus(bank,paidAmt);
 }
 function acctBadge(){appBadgeSoon();
   const D={reports,ORD:ORDERS,PD:PAID};const pay=[...projPayables(D,P),...ledgerPayables("project")];const U=urgentOf(pay,advances(pay,"project"));
@@ -1620,7 +1623,7 @@ function payRow0(p,opts={}){
     canAdj?el("button",{class:"btn",text:"Save new amount",onclick:async e=>{const a=+act.value;if(!(a>=0)){act.focus();return}e.target.disabled=true;try{await setActual(p,a,adjNote.value.trim());toast("Amount updated – the budget comparison and what's still to pay follow it.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}}):"",
     ms_,
     ref,el("button",{class:"btn main",onclick:async e=>{const ms=ms_;
-      if(!cashCheckOK(ms.value,ref.value)){(ms.value?ref:ms).focus();return}e.target.disabled=true;try{if(canAdj&&adjNote.value.trim()&&adjNote.value.trim()!==(p.adjNote||""))await setActual(p,+act.value,adjNote.value.trim());await markPaid(p,(ref.value.trim()?`${ms_.value}: ${ref.value.trim()}`:ms_.value),+act.value);toast("Marked paid.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}},mp_));
+      if(!cashCheckOK(ms.value,ref.value,ms)){if(!ms.value)ms.focus();return}e.target.disabled=true;try{if(canAdj&&adjNote.value.trim()&&adjNote.value.trim()!==(p.adjNote||""))await setActual(p,+act.value,adjNote.value.trim());await markPaid(p,(ref.value.trim()?`${ms_.value}: ${ref.value.trim()}`:ms_.value),+act.value,ms_.bank);toast("Marked paid.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}},mp_));
   if(opts.fund)f.append(el("button",{class:"btn",text:"Ask GM for funds",onclick:async()=>{try{await db.collection("messages").doc("m"+Date.now()).set({project:p.project,projName:projName(p.project),type:"funding",to:"gm",from:"acct",fromId:await myId(),subject:`Funds needed: ${peso(p.amt)} to ${p.payee} by ${fd(p.due)}`,body:`${p.type||""} · ${p.ref||""} · ${p.what||""}`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()});toast("Funding request sent to the AAT-Gen Manager.")}catch(e){toast("Not sent.")}}}));
   r.append(f);return r;
 }
@@ -1675,6 +1678,7 @@ async function renderAcct(){
   if(money){R("cash","💰","Cash on hand",0,cashUnlocked()?`${peso(tot)} · ${gap>=0?"covers this week":peso(-gap)+" short this week"}`:"🔒 PIN",()=>cashLock(()=>SUBBUILD("cash")))}
   H("PAYABLES – WHAT WE OWE");
   {const tdL=acOpen(pay).filter(p=>p.due&&p.due<=td);R("pay","📤","Payables – what we owe",tdL.length,tdL.length?`${peso(tdL.reduce((t,p)=>t+(+p.amt||0),0))} to pay today`:(nOpen?`nothing today · ${nOpen} open`:"none open"),()=>{const b=el("div",{});b.append(el("div",{style:"font-weight:800;font-size:16px;margin:2px 0 6px",text:"📌 Pay today"}),acTodayView(pay),el("div",{style:"font-weight:800;font-size:16px;margin:16px 0 6px",text:"📂 Everything we owe – by type"}),SUBBUILD("pay"));return b})}
+  R("daily","📅","Daily summary",0,"paid and unpaid today",()=>dailySummary());
   {const aq=acctQueue();if(aq)R("queue","✅","Approved by GM – to pay",QC.n,"",()=>aq)}
   if(money){H("MONEY IN");const RD=acRecvData();R("recv","📥","Receivables",RD.toBill.length+RD.over.length,RD.overAmt>0.5?`${peso(RD.overAmt)} overdue`:`${peso(RD.out)} owed to us`,()=>el("div",{},el("p",{class:"hint",style:"margin:0 0 8px",text:"Money clients owe the company. Choose what to see."}),acRecvView()))}
   H("REPORTS & CLEAN-UP");
@@ -1852,8 +1856,34 @@ async function sendBpiRequest(item,amount,account,note,opt){opt=opt||{};
   return id;
 }
 const METHODS=["Cash","Check","Bank transfer"];
-function methodSel(){const m=el("select",{class:"fin","aria-label":"Payment method"},el("option",{value:"",text:"Paid by…"}),...METHODS.map(x=>el("option",{value:x,text:x})));return m}
-function cashCheckOK(method,ref){if(!method){toast("Choose how it was paid: cash, check or bank transfer.");return false}return true}
+function methodSel(){const m=el("select",{class:"fin","aria-label":"Payment method"},el("option",{value:"",text:"Paid by…"}),...METHODS.map(x=>el("option",{value:x,text:x})));
+  const bs=el("select",{class:"fin","aria-label":"Paid from which Silong bank account"},el("option",{value:"",text:"From which Silong account…"}),...bankList().map(b=>el("option",{value:b.id,text:`${b.name}${b.accountNo?" ·· "+String(b.accountNo).slice(-4):""} – ${peso(expectedBalanceSafe(b.id))}`})));
+  m.bankSel=bs;Object.defineProperty(m,"bank",{get:()=>m.value==="Bank transfer"?bs.value:""});
+  m.addEventListener("change",()=>{if(m.value==="Bank transfer"){if(!bs.isConnected)m.after(bs)}else bs.remove()});return m}
+function dailySummary(){const box=el("div",{class:"panel"});const dt=el("input",{class:"fin",type:"date","aria-label":"Day"});dt.value=iso(new Date());
+  const out=el("div",{});const show=async()=>{out.replaceChildren(el("p",{class:"small",text:"Loading…"}));const keep=acctScope;acctScope="company";let pay=[];try{pay=(await scopeData()).pay}finally{acctScope=keep}
+    const d=dt.value,td=iso(new Date());const amtOf=p=>+(p.paid&&(p.paid.paidAmt||p.paid.actual))||+p.amt||0;
+    const how=p=>{const r=(p.paid&&p.paid.ref)||"";return /^Cash/i.test(r)?"Cash":/^Check|^PDC/i.test(r)?"Check":/^Bank transfer|^BizLink|^BPI/i.test(r)?"Bank transfer":"Other"};
+    const paid=pay.filter(p=>p.paid&&p.paid.on===d);
+    const obp=Object.values(OBPAY||{}).filter(x=>x.kind==="paid"&&x.date===d).map(x=>({payee:(OBS[x.ob]||{}).name||"Company due",amt:+x.amount||0,project:"company",type:"Company due",paid:{on:d,ref:x.ref||""}}));
+    const P_=[...paid,...obp];const unpaid=pay.filter(p=>!p.paid&&p.due&&p.due<=d);const later=pay.filter(p=>!p.paid&&(!p.due||p.due>d));
+    const sum=a=>a.reduce((t,p)=>t+amtOf(p),0);const pn=id=>id==="company"?"Company":(projName(id)||id||"");
+    const row=(p,paidRow)=>el("div",{class:"drow"},el("div",{},el("b",{text:p.payee||"—"}),el("div",{class:"small",text:`${pn(p.project)}${p.type?" · "+p.type:""}${paidRow?" · "+(p.paid.ref||how(p)):` · due ${fd(p.due)}${p.due<d?" (overdue)":""}`}`})),el("b",{text:peso(amtOf(p))}));
+    const byHow={};P_.forEach(p=>{const k=how(p);byHow[k]=(byHow[k]||0)+amtOf(p)});
+    const byBank={};P_.forEach(p=>{const b=p.paid&&p.paid.bank;if(b)byBank[b]=(byBank[b]||0)+amtOf(p)});
+    const H=t=>el("div",{style:"font-weight:800;font-size:16px;margin:14px 0 6px",text:t});
+    out.replaceChildren(
+      el("div",{class:"bankgrid"},el("div",{class:"panel"},el("div",{class:"small",text:"Paid"}),el("div",{class:"bk-amt",text:peso(sum(P_))}),el("div",{class:"small",text:`${P_.length} payment${P_.length===1?"":"s"}`})),
+        el("div",{class:"panel"},el("div",{class:"small",text:d===td?"Unpaid – due today or overdue":"Unpaid – due by this day"}),el("div",{class:"bk-amt",style:unpaid.length?"color:var(--late)":"",text:peso(sum(unpaid))}),el("div",{class:"small",text:`${unpaid.length} item${unpaid.length===1?"":"s"} · ${peso(sum(later))} due later`}))),
+      P_.length?el("div",{class:"small",style:"margin-top:8px",text:Object.entries(byHow).map(([k,v])=>`${k} ${peso(v)}`).join(" · ")}):"",
+      Object.keys(byBank).length?el("div",{class:"small",text:"From bank: "+Object.entries(byBank).map(([k,v])=>`${bankNameOf(k)||k} ${peso(v)}`).join(" · ")}):"",
+      H(`✅ Paid on ${fd(d)}`),...(P_.length?P_.map(p=>row(p,true)):[el("div",{class:"mini empty",text:"Nothing marked paid on this day."})]),
+      H(`⏳ Unpaid – due by ${fd(d)}`),...(unpaid.length?unpaid.sort((a,b)=>(a.due||"").localeCompare(b.due||"")).map(p=>row(p,false)):[el("div",{class:"mini empty",text:"Nothing due is left unpaid."})]),
+      el("div",{class:"opts",style:"margin-top:10px"},el("button",{class:"btn",text:"Copy summary",onclick:()=>{const t=[`Daily summary ${fd(d)}`,`Paid: ${peso(sum(P_))} (${P_.length})`,...P_.map(p=>`  ✓ ${p.payee} ${peso(amtOf(p))} – ${p.paid.ref||how(p)}`),`Unpaid due: ${peso(sum(unpaid))} (${unpaid.length})`,...unpaid.map(p=>`  • ${p.payee} ${peso(amtOf(p))} – due ${fd(p.due)}`)].join("\n");try{navigator.clipboard.writeText(t);toast("Copied – paste it in Viber.")}catch(e){}}}),el("button",{class:"btn",text:"Print",onclick:()=>window.print()})))};
+  dt.onchange=show;box.append(el("label",{class:"small fdate"},"Day ",dt),out);show();return box}
+function expectedBalanceSafe(id){try{return expectedBalance(id)}catch(e){return +(BANKS[id]||{}).balance||0}}
+function bankNameOf(id){const b=bankList().find(x=>x.id===id)||{};return b.name?`${b.name}${b.accountNo?" ·· "+String(b.accountNo).slice(-4):""}`:""}
+function cashCheckOK(method,ref,sel){if(!method){toast("Choose how it was paid: cash, check or bank transfer.");return false}if(method==="Bank transfer"&&sel&&sel.bankSel&&!sel.bank){toast("Choose which Silong bank account it was paid from.");sel.bankSel.focus();return false}return true}
 function bpiForm(anchor,item){
   const old=anchor.parentNode.querySelector(":scope > .askbox");if(old){old.remove();return}
   const box=el("div",{class:"askbox"});const am=el("input",{class:"fin n",type:"number",step:"any","aria-label":"Amount"});am.value=Math.round(item.amt*100)/100;
@@ -1892,7 +1922,7 @@ function todayView(pay){
     const f_=el("div",{class:"form"});if(x.kind==="pay"&&["acct","gm"].includes(ROLE)&&x.p.src!=="payplan"){const eb=el("div",{class:"opts"},el("button",{class:"btn",text:"✏️ Edit",onclick:()=>editForm(x.p,eb)}));r.append(eb)}
     if(!st){if(x.kind==="pay"&&x.p.src==="payplan"){const b2=el("button",{class:"btn main",text:"Paid ✓ – enter actual payroll",onclick:()=>b2.replaceWith(payplanForm(x.p))});f_.append(b2)}else if(x.kind==="pay"){const ref=el("input",{class:"fin",placeholder:"Reference (optional)","aria-label":"Reference"});const am=el("input",{class:"fin n",type:"number",step:"any","aria-label":"Actual paid"});am.value=Math.round(x.p.amt*100)/100;
         const mt=methodSel();
-        f_.append(el("label",{class:"small fdate dl"},`Actual ₱ (budget ${peso(x.p.budget!=null?x.p.budget:x.p.amt)}) `,am),mt,ref,el("button",{class:"btn main",text:"Paid ✓",onclick:async()=>{if(!cashCheckOK(mt.value,ref.value)){(mt.value?ref:mt).focus();return}try{await markPaid(x.p,(ref.value.trim()?`${mt.value}: ${ref.value.trim()}`:mt.value),+am.value);toast("Marked paid.");renderAcct()}catch(e){toast("Not saved.")}}}))}
+        f_.append(el("label",{class:"small fdate dl"},`Actual ₱ (budget ${peso(x.p.budget!=null?x.p.budget:x.p.amt)}) `,am),mt,ref,el("button",{class:"btn main",text:"Paid ✓",onclick:async()=>{if(!cashCheckOK(mt.value,ref.value,mt)){if(!mt.value)mt.focus();return}try{await markPaid(x.p,(ref.value.trim()?`${mt.value}: ${ref.value.trim()}`:mt.value),+am.value,mt.bank);toast("Marked paid.");renderAcct()}catch(e){toast("Not saved.")}}}))}
       else{const mt=methodSel(),ref=el("input",{class:"fin",placeholder:"Reference (optional)","aria-label":"Reference"}),am=el("input",{class:"fin n",type:"number",step:"any","aria-label":"Actual paid"});am.value=Math.round(x.amt*100)/100;
         f_.append(el("label",{class:"small fdate dl"},"Amount ₱ ",am),mt,ref,el("button",{class:"btn main",text:"Paid ✓",onclick:async()=>{if(!cashCheckOK(mt.value,ref.value)){mt.focus();return}const r_=ref.value.trim()?`${mt.value}: ${ref.value.trim()}`:mt.value;
           try{if(x.kind==="obs")await db.collection("obpay").doc(x.pp.pid).update({kind:"paid",amount:+am.value||x.amt,date:iso(new Date()),ref:r_,updatedAt:Date.now()});
@@ -2116,7 +2146,7 @@ function acctQueue(){if(!["acct","gm"].includes(ROLE)||!db)return "";
             el("div",{class:"opts"},el("button",{class:"btn main",text:"Send to the AAT-Gen Manager for authorization",onclick:async e=>{if(!(+am.value)){am.focus();return}e.target.disabled=true;try{const {p}=await apvPayable(a);const xid=await sendBpiRequest({ref_:{src:"pay",key:a.payKey},payee:a.payee,what:a.what,due:p?p.due:(a.need||iso(new Date())),project:a.project},+am.value,ac.value.trim(),nt.value.trim(),{urgent:ur.checked,apv:id});
               await db.collection("apv").doc(id).update({stage:"bizlink",xfer:xid,urgent:ur.checked,note:"",updatedAt:Date.now()});toast(ur.checked?"Sent – flashing on the AAT-Gen Manager's screen as URGENT.":"Sent – the AAT-Gen Manager is alerted to authorize it.")}catch(err){toast("Not saved – try again.");e.target.disabled=false}}}),el("button",{class:"btn",text:"Back",onclick:()=>bx.remove()})));f.append(bx)}}),
         el("button",{class:"btn",text:"Paid by cash / check",onclick:()=>{const old=f.querySelector(".askbox");if(old){old.remove();return}const bx=el("div",{class:"askbox"});const mt=methodSel();const rf=el("input",{class:"fin",placeholder:"OR / check no. (optional)","aria-label":"Reference"});const am=el("input",{class:"fin n",type:"number",step:"any","aria-label":"Actual paid"});am.value=a.amount;
-          bx.append(el("div",{class:"form"},el("label",{class:"small fdate dl"},"Actual ₱ ",am),mt,rf),el("div",{class:"opts"},el("button",{class:"btn main",text:"Paid ✓",onclick:async e=>{if(!mt.value){mt.focus();toast("Choose how it was paid.");return}e.target.disabled=true;try{const {p}=await apvPayable(a);const r_=rf.value.trim()?`${mt.value}: ${rf.value.trim()}`:mt.value;if(p&&!p.paid)await markPaid(p,r_,+am.value);await db.collection("apv").doc(id).update({stage:"paid",paidAt:Date.now(),paidRef:r_,updatedAt:Date.now()});toast(p?"Marked paid.":"Closed. When Purchasing logs the order, mark it paid in Payables with the same reference so it isn't paid twice.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}}),el("button",{class:"btn",text:"Back",onclick:()=>bx.remove()})));f.append(bx)}}))}
+          bx.append(el("div",{class:"form"},el("label",{class:"small fdate dl"},"Actual ₱ ",am),mt,rf),el("div",{class:"opts"},el("button",{class:"btn main",text:"Paid ✓",onclick:async e=>{if(!cashCheckOK(mt.value,rf.value,mt)){if(!mt.value)mt.focus();return}e.target.disabled=true;try{const {p}=await apvPayable(a);const r_=rf.value.trim()?`${mt.value}: ${rf.value.trim()}`:mt.value;if(p&&!p.paid)await markPaid(p,r_,+am.value,mt.bank);else if(mt.bank)await bankMinus(mt.bank,+am.value||+a.amount||0);await db.collection("apv").doc(id).update({stage:"paid",paidAt:Date.now(),paidRef:r_,updatedAt:Date.now()});toast(p?"Marked paid.":"Closed. When Purchasing logs the order, mark it paid in Payables with the same reference so it isn't paid twice.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}}),el("button",{class:"btn",text:"Back",onclick:()=>bx.remove()})));f.append(bx)}}))}
       s_.append(card(id,a,f))});
     box.append(s_)}
   if(auth.length&&ROLE==="acct"){const s_=el("section",{class:"qsec"});s_.append(qHead("on",`🏦 ${auth.length} authorized in BizLink – confirm paid`,"Add the BizLink reference to close it."));
