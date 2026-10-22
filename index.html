@@ -400,6 +400,7 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
     <button role="tab" aria-selected="true" id="tReport">PM report</button>
     <button role="tab" aria-selected="false" id="tList">Sent reports</button>
     <button role="tab" aria-selected="false" id="tMat">Deliveries</button>
+    <button role="tab" aria-selected="false" id="tJO">Job orders</button>
     <button role="tab" aria-selected="false" id="tPlan">BOQ</button>
     <button role="tab" aria-selected="false" id="tBuy">Orders</button>
     <button role="tab" aria-selected="false" id="tAcct">Accounts</button>
@@ -579,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-10-22a"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-10-22c"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -649,16 +650,16 @@ const clamp=s=>s<START?START:(s>END?END:s);
 const col=c=>P===BARN?c:"p/"+P+"/"+c;
 const ROLES={gm:"AAT-Gen Manager",head:"Head of PMs (Compliance & Submissions)",pmc:"Project Manager – Engineering / Head of Construction",pmd:"Project Manager – Design",pm:"Site Engineer",sup:"Supervisor on duty",arch:"Project Architect",appr:"Architect Apprentice",hr:"HR Officer",buy:"Purchasing",acct:"Accounts",kiosk:"Attendance kiosk (wall tablet)"};
 const SCHED_EDIT=["gm","head","pmc"], REVIEWERS=["gm","head","pmc"];
-const TABS_FOR={gm:["home","proj","est","gm","hr","roster","head","design","sched","docs","report","list","mat","plan","buy","acct","recv","bill","msg","setup"],
-  head:["home","head","proj","roster","design","sched","docs","report","list","mat","plan","buy","bill","msg","setup"],
-  pmc:["home","head","proj","est","roster","sched","docs","report","list","mat","plan","msg","setup","hr"],
-  pmd:["home","design","report","sched","docs","list","msg"],
+const TABS_FOR={gm:["home","proj","est","gm","hr","roster","head","design","sched","docs","report","list","mat","jo","plan","buy","acct","recv","bill","msg","setup"],
+  head:["home","head","proj","roster","design","sched","docs","report","list","mat","jo","plan","buy","bill","msg","setup"],
+  pmc:["home","head","proj","est","roster","sched","docs","report","list","mat","jo","plan","msg","setup","hr"],
+  pmd:["home","design","report","sched","docs","list","jo","msg"],
   arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],
-  pm:["home","report","list","sched","mat","msg"],sup:["home","report","list","sched","mat","msg"],
+  pm:["home","report","list","sched","mat","jo","msg"],sup:["home","report","list","sched","mat","jo","msg"],
   buy:["home","myproj","plan","buy","msg"],acct:["home","acct","recv","bill","hr","msg"],hr:["home","hr","roster","msg"],kiosk:["kiosk"]};
 // what shows in the tab bar (everything in TABS_FOR stays reachable)
-const TABS_BAR={arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],buy:["home","buy","plan","msg","myproj"],gm:["home","proj","design","est","buy","acct","bill","hr","msg"],acct:["home","acct","bill","hr","msg"],
-  head:["home","head","proj","report","buy","design","bill","roster","msg"],pmc:["home","head","proj","est","report","msg"]};
+const TABS_BAR={arch:["home","dproj","design","est","msg"],appr:["home","dproj","design","est","msg"],buy:["home","buy","plan","msg","myproj"],gm:["home","proj","jo","design","est","buy","acct","bill","hr","msg"],acct:["home","acct","bill","hr","msg"],
+  head:["home","head","proj","jo","report","buy","design","bill","roster","msg"],pmc:["home","head","proj","jo","est","report","msg"]};
 const TAB_PARENT={roster:"hr",gm:"home",head:"home",sched:"proj",docs:"proj",list:"proj",plan:"proj",mat:"proj",report:"proj",setup:"proj",recv:"acct",fab:"proj",permits:"proj"};
 const TAB_NAME={home:"Home",proj:"Projects",acct:"Accounts",hr:"HR"};
 function barTab(t){const B=TABS_BAR[ROLE];if(!B||B.includes(t))return t;return TAB_PARENT[t]||t}
@@ -667,7 +668,7 @@ function updSubbar(){let sb=document.getElementById("subbar");const vw=document.
   const B=TABS_BAR[ROLE];const par=B&&!B.includes(tab)&&TAB_PARENT[tab];
   if(!par){sb.style.display="none";sb.replaceChildren();return}
   sb.style.display="";sb.replaceChildren(el("button",{class:"btn",style:"width:100%;text-align:left;margin:10px 0 0",text:`← Back to ${TAB_NAME[par]||par}`+(par==="proj"&&CFG.name?`  ·  ${CFG.name}`:""),onclick:()=>switchTab(par)}))}
-const TABID={home:"#tHome",proj:"#tProj",gm:"#tGM",head:"#tHead",design:"#tDesign",hr:"#tHR",sched:"#tSched",docs:"#tDocs",report:"#tReport",list:"#tList",mat:"#tMat",plan:"#tPlan",buy:"#tBuy",acct:"#tAcct",recv:"#tRecv",bill:"#tBill",roster:"#tRoster",msg:"#tMsg",setup:"#tSetup",myproj:"#tMyProj",est:"#tEst",dproj:"#tDProj"};
+const TABID={home:"#tHome",proj:"#tProj",gm:"#tGM",head:"#tHead",design:"#tDesign",hr:"#tHR",sched:"#tSched",docs:"#tDocs",report:"#tReport",list:"#tList",mat:"#tMat",jo:"#tJO",plan:"#tPlan",buy:"#tBuy",acct:"#tAcct",recv:"#tRecv",bill:"#tBill",roster:"#tRoster",msg:"#tMsg",setup:"#tSetup",myproj:"#tMyProj",est:"#tEst",dproj:"#tDProj"};
 let ROLE="none", ACCESS={}, PEOPLE={}, ME="", OWNER=false;
 let MAN=[], EDITS={}, DELED={}, CHECKS={items:[]}, DOCS={}, FOLDERS={}, HREP={};
 function coverOf(ORD){const m={};Object.entries(ORD||{}).forEach(([id,o])=>{if(!o||o.status==="cancelled"||!Array.isArray(o.covers))return;o.covers.forEach(po=>{if(!m[po])m[po]={id,o}})});return m}
@@ -780,6 +781,92 @@ function actCard(a,carry){
   mark(); return card;
 }
 function sec(title,n,hint,...kids){return el("section",{},el("h2",{},title,n!=null?el("span",{class:"n",text:n}):null),hint?el("p",{class:"hint",text:hint}):null,...kids)}
+// ---------- JOB ORDERS ----------
+let JOBS={};
+const JO_TRADES=["Carpentry","Electrical","Plumbing","Painting","Masonry / tiling","Ceiling / drywall","Welding / steel","Aircon / mechanical","Cleaning / hauling","Other"];
+const JO_ST={submitted:"⏳ Waiting for approval",approved:"✅ Approved – go ahead",progress:"🔧 In progress",done:"🏁 Done",returned:"↩️ Returned – fix and resend",declined:"✖️ Declined"};
+const JO_TO=["gm","head","pmc","pmd"];
+function joCanPin(sid){const s=STAFF[sid]||{};return !!s.pinH&&!!(s.jo||s.supervisor)}
+function joPinStaff(){return Object.entries(STAFF||{}).filter(([id,s])=>s&&!s.left&&joCanPin(id)).sort((a,b)=>(a[1].name||"").localeCompare(b[1].name||""))}
+function joApprover(){return !!OWNER||JO_TO.includes(ROLE)}
+function joSite(){return ["pm","sup"].includes(ROLE)||joApprover()}
+function joNo(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `JO-${String(d.getFullYear()).slice(2)}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`}
+function joForm(o){o=o||{};const kiosk=!!o.sid;const box=el("div",{class:"panel",style:"text-align:left"});const idle=()=>{if(kiosk)try{kioskIdle()}catch(e){}};
+  const big=kiosk?"font-size:17px;padding:8px":"";const L=(t,x)=>el("label",{class:"small lbl",style:"display:block;margin-top:8px"},el("div",{style:"font-weight:700",text:t}),x);
+  const inp=(ph,type)=>{const x=el("input",{class:"fin",type:type||"text",placeholder:ph||"",style:big});x.oninput=idle;return x};
+  const ta=(ph,r)=>{const x=el("textarea",{class:"fin",rows:r||3,placeholder:ph,style:kiosk?"font-size:16px":""});x.oninput=idle;return x};
+  const P_=Object.entries(PROJS||{}).filter(([,c])=>c&&c.name&&!c.closed).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+  const ps=el("select",{class:"fin",style:big,"aria-label":"Project"},el("option",{value:"",text:"– which project is this for? –"}),...P_.map(([id,c])=>el("option",{value:id,text:c.name})),el("option",{value:"__new",text:"➕ Something new / not a project"}));
+  ps.value=o.project||(o.loc?((P_.find(([,c])=>(o.loc||"").includes(c.name))||[])[0]||""):"");
+  const other=el("input",{class:"fin",style:big+";display:none",placeholder:"What is it for? e.g. Office / warehouse, new client, Hermeto","aria-label":"What is it for"});other.oninput=idle;
+  ps.onchange=()=>{idle();other.style.display=ps.value==="__new"?"":"none";if(ps.value==="__new")other.focus()};
+  // who is making it
+  let who=null,pin=null;const whoBox=el("div",{});
+  if(kiosk)whoBox.append(L("Made by",el("div",{style:"font-size:17px;font-weight:700",text:(STAFF[o.sid]||{}).name||""})));
+  else{const meNm=(ACCESS[ME]||{}).name||(ROLE==="gm"||OWNER?"AAT-Gen Manager":ROLES[ROLE]||"Me");
+    who=el("select",{class:"fin","aria-label":"Made by"},el("option",{value:"me",text:`Me – ${meNm}`}),...joPinStaff().map(([id,s])=>el("option",{value:id,text:`${s.name} (with their PIN)`})));
+    pin=el("input",{class:"fin",type:"password",inputmode:"numeric",maxlength:"4",placeholder:"Their 4-digit PIN",style:"max-width:170px;display:none","aria-label":"PIN"});
+    who.onchange=()=>{pin.style.display=who.value==="me"?"none":"";if(who.value!=="me")pin.focus()};
+    whoBox.append(L("Made by",who),pin)}
+  const area=inp("e.g. 2F kitchen, wall K-3"),tr=el("select",{class:"fin",style:big,"aria-label":"Type of work"},el("option",{value:"",text:"– type of work –"}),...JO_TRADES.map(t=>el("option",{value:t,text:t})));
+  const desc=ta("What exactly needs to be done",4),mats=ta("Materials needed – item and quantity, one per line (leave blank if none)",3);
+  const crew=inp("Who will do it – lead / crew"),wk=inp("0","number");wk.min="0";wk.style.maxWidth="90px";
+  const st=inp("","date"),fn=inp("","date");st.value=iso(new Date());const urg=el("input",{type:"checkbox"});const msg=el("div",{class:"small",style:"color:var(--late);font-weight:700;margin-top:6px"});
+  const bad=t=>{msg.textContent=t};
+  const send=el("button",{class:"btn main",style:kiosk?"font-size:18px":"",text:"📨 Send job order",onclick:async e=>{idle();bad("");
+    if(!ps.value){bad("Choose the project, or ➕ Something new.");ps.focus();return}if(ps.value==="__new"&&!other.value.trim()){bad("Type what this job order is for.");other.focus();return}if(!tr.value){bad("Choose the type of work.");tr.focus();return}if(!desc.value.trim()){bad("Describe the work.");desc.focus();return}
+    let by;if(kiosk){const s=STAFF[o.sid]||{};by={sid:o.sid,name:s.name||"",via:"kiosk PIN"}}
+    else if(who.value==="me")by={uid:ME,name:(ACCESS[ME]||{}).name||(ROLE==="gm"||OWNER?"AAT-Gen Manager":ROLES[ROLE]),role:OWNER?"gm":ROLE,via:"login"};
+    else{const s=STAFF[who.value]||{};if(!/^\d{4}$/.test(pin.value)){bad("Type the 4-digit PIN.");pin.focus();return}
+      if(await pinHash(who.value,pin.value)!==s.pinH){bad("Wrong PIN.");pin.value="";pin.focus();return}by={sid:who.value,name:s.name||"",via:"PIN"}}
+    e.target.disabled=true;const id="jo"+Date.now(),no=joNo(),isNew=ps.value==="__new",pn=isNew?other.value.trim():(PROJS[ps.value]||{}).name||"";
+    const J={no,project:isNew?"":ps.value,projName:pn,other:isNew,area:area.value.trim(),trade:tr.value,desc:desc.value.trim(),materials:mats.value.trim(),crew:crew.value.trim(),workers:+wk.value||0,start:st.value,finish:fn.value,urgent:urg.checked,status:"submitted",by,createdAt:Date.now(),updatedAt:Date.now(),log:[{at:Date.now(),st:"submitted",name:by.name}]};
+    try{await db.collection("joborders").doc(id).set(J);JOBS[id]=J}catch(er){bad("Not sent – "+((er&&(er.code||er.message))||"try again"));e.target.disabled=false;return}
+    try{await db.collection("notices").doc("jo_"+id).set({title:`Job order ${no} – ${pn}`,body:`${J.trade}${J.area?" · "+J.area:""}: ${J.desc.slice(0,140)}${J.urgent?" (URGENT)":""}. Approve it in the Job orders tab.`,level:J.urgent?"urgent":"important",project:isNew?"":ps.value,to:JO_TO,attach:[],by:ME||"",byRole:OWNER?"gm":ROLE,fromName:by.name,at:Date.now(),acks:{},closed:false,jo:id})}catch(e2){}
+    toast(`Job order ${no} sent to the project managers and the AAT-Gen Manager.`);if(o.done)o.done(id)}});
+  box.append(el("div",{style:"font-weight:800;font-size:17px",text:"📝 New job order"}),whoBox,L("Project",ps),other,L("Where on site",area),L("Type of work",tr),L("Work to be done",desc),L("Materials needed",mats),
+    L("Assigned to",crew),L("No. of workers",wk),el("div",{style:"display:flex;gap:10px;flex-wrap:wrap"},L("Start",st),L("Target finish",fn)),
+    el("label",{class:"chk",style:"margin-top:8px"},urg,el("span",{text:"Urgent – work is held up without it"})),msg,el("div",{class:"opts",style:"margin-top:10px"},send,o.cancel?el("button",{class:"btn",text:"Cancel",onclick:o.cancel}):""));
+  return box}
+async function joSet(id,st,note){const j=JOBS[id]||{};const nm=(ACCESS[ME]||{}).name||(OWNER||ROLE==="gm"?"AAT-Gen Manager":ROLES[ROLE]);
+  const up={status:st,updatedAt:Date.now(),log:[...(j.log||[]),{at:Date.now(),st,name:nm,note:note||""}]};
+  if(st==="approved"){up.approvedBy=nm;up.approvedAt=Date.now()}if(st==="done")up.doneAt=Date.now();if(note)up.lastNote=note;
+  await db.collection("joborders").doc(id).update(up);JOBS[id]={...j,...up};
+  if(st!=="submitted")try{await db.collection("notices").doc("jo_"+id).update({closed:true,closedAt:Date.now()})}catch(e){}}
+function joPrint(id){const j=JOBS[id]||{};const E=x=>String(x==null?"":x).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const row=(a,b)=>`<tr><th>${a}</th><td>${E(b)||"&nbsp;"}</td></tr>`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${E(j.no)}</title><style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;color:#1D2730;margin:28px;font-size:13px}h1{font-size:20px;margin:0}.co{font-weight:800;letter-spacing:.04em}.sub{color:#5B6670;font-size:11px}.bar{border-top:3px solid #1D2730;margin:10px 0 14px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #B9C3CC;padding:7px;text-align:left;vertical-align:top}th{width:30%;background:#F2F4F6}pre{white-space:pre-wrap;font:inherit;margin:0}.sig{display:flex;gap:18px;margin-top:40px}.sig div{flex:1;border-top:1px solid #1D2730;padding-top:4px;font-size:11px}</style></head><body>
+<div class="co">SILONG AMBIANT DEKOR CO. LTD.</div><div class="sub">design . construct . landscape</div><div class="bar"></div>
+<h1>JOB ORDER ${E(j.no)}</h1><div class="sub">${j.urgent?"URGENT · ":""}Status: ${E(JO_ST[j.status]||j.status)}</div><br>
+<table>${row("Project",j.projName)}${row("Where on site",j.area)}${row("Type of work",j.trade)}<tr><th>Work to be done</th><td><pre>${E(j.desc)}</pre></td></tr><tr><th>Materials needed</th><td><pre>${E(j.materials)||"&nbsp;"}</pre></td></tr>${row("Assigned to",j.crew)}${row("No. of workers",j.workers||"")}${row("Start",j.start?fd(j.start):"")}${row("Target finish",j.finish?fd(j.finish):"")}${row("Requested by",(j.by||{}).name+" · "+new Date(j.createdAt||0).toLocaleString())}${row("Approved by",j.approvedBy?j.approvedBy+" · "+new Date(j.approvedAt).toLocaleString():"")}</table>
+<div class="sig"><div>Requested by</div><div>Approved by (PM / AAT-Gen Manager)</div><div>Work completed – received by</div></div><script>setTimeout(()=>print(),300)<\/script></body></html>`;
+  const w=window.open("","_blank");if(w){w.document.write(html);w.document.close()}else toast("Allow pop-ups to print.")}
+function joCard(id,j){const c=el("div",{class:"drow",style:"display:block;padding:10px 0;border-bottom:1px solid var(--line,#E3E7EA)"});
+  c.append(el("div",{},el("b",{text:`${j.no} · ${j.trade}${j.area?" · "+j.area:""}`}),j.urgent?el("span",{class:"tag",style:"margin-left:6px;background:var(--late);color:#fff",text:"URGENT"}):"",el("span",{class:"tag",style:"margin-left:6px",text:JO_ST[j.status]||j.status})),
+    el("div",{style:"white-space:pre-wrap;margin:4px 0",text:j.desc||""}),j.materials?el("div",{class:"small",style:"white-space:pre-wrap",text:"Materials: "+j.materials}):"",
+    el("div",{class:"small",text:`By ${(j.by||{}).name||"?"} · ${dtTxt(j.createdAt)}${j.crew?" · Assigned: "+j.crew:""}${j.workers?" · "+j.workers+" workers":""}${j.start?" · start "+fd(j.start):""}${j.finish?" · finish "+fd(j.finish):""}${j.approvedBy?" · approved by "+j.approvedBy:""}`}),
+    j.lastNote?el("div",{class:"small",style:"font-weight:600",text:"Note: "+j.lastNote}):"");
+  const note=el("input",{class:"fin",placeholder:"Note (needed to return or decline)",style:"display:none"});const act=(st,need)=>async e=>{if(need&&note.style.display==="none"){note.style.display="";note.focus();return}if(need&&!note.value.trim()){note.focus();toast("Add a short note first.");return}
+    e.target.disabled=true;try{await joSet(id,st,note.value.trim());toast("Saved.");rerenderJO()}catch(er){toast("Not saved.");e.target.disabled=false}};
+  const B=[];if(joApprover()&&j.status==="submitted")B.push(el("button",{class:"btn main",text:"✅ Approve",onclick:act("approved")}),el("button",{class:"btn",text:"↩️ Return",onclick:act("returned",true)}),el("button",{class:"btn",text:"✖️ Decline",onclick:act("declined",true)}));
+  if(joSite()&&j.status==="approved")B.push(el("button",{class:"btn",text:"🔧 Work started",onclick:act("progress")}));
+  if(joSite()&&["approved","progress"].includes(j.status))B.push(el("button",{class:"btn",text:"🏁 Mark done",onclick:act("done")}));
+  B.push(el("button",{class:"btn",text:"🖨 Print",onclick:()=>joPrint(id)}));
+  c.append(note,el("div",{class:"opts tight",style:"margin-top:6px"},...B));return c}
+function rerenderJO(){if(tab==="jo"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderJO();scrollTo(0,y)}}
+let JOF="open";
+function renderJO(){RSEQ++;const v=$("#view");v.replaceChildren();
+  const all=Object.entries(JOBS).filter(([,j])=>j&&j.no).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  const OPEN=["submitted","approved","progress","returned"];const wait=all.filter(([,j])=>j.status==="submitted");
+  const list=JOF==="wait"?wait:JOF==="open"?all.filter(([,j])=>OPEN.includes(j.status)):all.slice(0,60);
+  const formHold=el("div",{});
+  v.append(el("h2",{class:"bighead"},"📝 Job orders"),el("p",{class:"hint",text:"Work requests from site or office. Project managers, supervisors and staff given access (with their PIN) can make one; the project managers and the AAT-Gen Manager approve."}),
+    el("div",{class:"opts"},el("button",{class:"btn main",text:"+ New job order",onclick:()=>{formHold.replaceChildren(joForm({done:()=>{formHold.replaceChildren();JOF="open";renderJO()},cancel:()=>formHold.replaceChildren()}));formHold.scrollIntoView({behavior:"smooth"})}})),formHold,
+    el("div",{class:"opts",role:"group",style:"margin-top:10px"},...[["wait",`Waiting for approval (${wait.length})`],["open",`Open (${all.filter(([,j])=>OPEN.includes(j.status)).length})`],["all","All"]].map(([k,t])=>el("button",{class:"opt","aria-pressed":JOF===k?"true":"false",text:t,onclick:()=>{JOF=k;renderJO()}}))));
+  if(!list.length){v.append(el("p",{class:"empty",text:JOF==="wait"?"Nothing waiting for approval.":"No job orders here."}));return}
+  const by={};list.forEach(([id,j])=>{const k=j.projName||"(no project)";(by[k]=by[k]||[]).push([id,j])});
+  Object.keys(by).sort().forEach(k=>v.append(sec(k,`${by[k].length}`,null,el("div",{class:"panel"},...by[k].map(([id,j])=>joCard(id,j))))))}
+
 
 // ---------- materials ----------
 const SUPS=["Crown Ace","Wilcon","Supplier"];
@@ -5876,7 +5963,10 @@ function staffProfile(sid){const s=STAFF[sid];const out=[];if(!s)return out;cons
     out.push(el("div",{class:"panel"},el("b",{text:"🕒 Attendance kiosk PIN"}),el("div",{class:"small",text:s.pinH?"PIN is set. Type a new one to reset it.":"No PIN yet – set one so this person can time in on the wall tablet."}),el("div",{class:"form"},pi,el("button",{class:"btn main",text:s.pinH?"Reset PIN":"Set PIN",onclick:async()=>{if(!/^\d{4}$/.test(pi.value)){o.textContent="Use exactly 4 numbers.";return}try{await db.collection("staff").doc(sid).set({...STAFF[sid],pinH:await pinHash(sid,pi.value)});o.textContent=`✓ PIN saved. Tell ${s.name.split(" ")[0]} privately.`;pi.value=""}catch(e){o.textContent="Not saved."}}}),o)))}
   if(["gm","hr","head","pmc"].includes(ROLE)){const cb=el("input",{type:"checkbox"});cb.checked=!!s.supervisor;const so=el("span",{class:"small"});
     cb.onchange=async()=>{try{await db.collection("staff").doc(sid).set({...STAFF[sid],supervisor:cb.checked});STAFF[sid]={...STAFF[sid],supervisor:cb.checked};so.textContent=cb.checked?" ✓ Can file supervisor reports with their PIN.":" Removed."}catch(e){so.textContent=" Not saved.";cb.checked=!cb.checked}};
-    out.push(el("div",{class:"panel"},el("b",{text:"📋 Supervisor on duty"}),el("label",{style:"display:flex;gap:8px;align-items:center;margin-top:6px"},cb,el("span",{text:"Allowed to file the Supervisor site report on the attendance phone (with their PIN)"})),so))}
+    out.push(el("div",{class:"panel"},el("b",{text:"📋 Supervisor on duty"}),el("label",{style:"display:flex;gap:8px;align-items:center;margin-top:6px"},cb,el("span",{text:"Allowed to file the Supervisor site report on the attendance phone (with their PIN)"})),so));
+    const jb=el("input",{type:"checkbox"});jb.checked=!!s.jo||!!s.supervisor;jb.disabled=!!s.supervisor;const jso=el("span",{class:"small"});
+    jb.onchange=async()=>{try{await db.collection("staff").doc(sid).set({...STAFF[sid],jo:jb.checked});STAFF[sid]={...STAFF[sid],jo:jb.checked};jso.textContent=jb.checked?(s.pinH?" ✓ Can make job orders with their PIN.":" ✓ Allowed – set their PIN above so they can use it."):" Removed."}catch(e){jso.textContent=" Not saved.";jb.checked=!jb.checked}};
+    out.push(el("div",{class:"panel"},el("b",{text:"🔧 Job orders"}),el("label",{style:"display:flex;gap:8px;align-items:center;margin-top:6px"},jb,el("span",{text:s.supervisor?"Supervisors can always make job orders with their PIN":"Allowed to make job orders with their PIN (attendance phone or a site device)"})),jso))}
   if(["gm","hr"].includes(ROLE))out.push(cxPanel(sid));
   const ne=nextEval(sid);const E=staffEvals(sid);
   out.push(el("div",{class:"panel"},el("div",{class:"sumt",style:"font-size:26px",text:s.name}),el("div",{class:"small",text:`${s.position||""} · ${HRCAT[s.category||"office"]} · ${s.status||"status not set"}${s.project?" · "+s.project:""}`}),
@@ -6913,7 +7003,7 @@ function renderKiosk(){RSEQ++;tab="kiosk";const v=$("#view");v.replaceChildren()
       if(hasOut&&!hasT("travelEnd"))B.push(optTravel("🚌 Travelling home after work? Tap here","🏁 TRAVEL END – arrived back (selfie)","travelEnd"));
       if(hasT("travelEnd"))B.push(el("div",{class:"small",style:"margin-top:6px",text:`🏁 Travel ended ${p.travelEnd?tm(p.travelEnd.at):"(saving)"}`}));return B})()),
     isNightP&&!/project manager|\bPM\b|site engineer|head of/i.test(s.position||"")?el("div",{class:"small",style:"margin-top:8px;font-weight:700",text:"🌙 Night shift – tap TIME OUT at the end of your shift."}):isNightP?el("div",{},el("div",{class:"small",style:"margin-top:8px;font-weight:700",text:`🌙 Night shift – check in every 2 hours. Done: ${(p.checks||[]).length}${(p.checks||[]).length?" (last "+tm(p.checks[p.checks.length-1].at)+")":""}`}),shot("📍 2-HOUR CHECK-IN (selfie)","check",true)):"",out,
-    el("div",{class:"opts",style:"margin-top:10px"},...(hasIn&&!hasOut?[el("button",{class:"btn",style:"font-size:18px",text:"🔁 Change assignment",onclick:()=>{window.KASK={sid,at:Date.now()};window.KOK={sid,at:Date.now()};renderKiosk()}})]:[]),(STAFF[sid]||{}).supervisor?el("button",{class:"btn main",style:"font-size:18px",text:"📋 Supervisor report",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx",style:"margin-top:8px"});b.append(supRepForm(sid,curLoc(),()=>{KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b);b.scrollIntoView({behavior:"smooth"})}}):"",el("button",{class:"btn",style:"font-size:18px",text:"📝 Apply for leave",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx"});b.append(leaveForm(sid,()=>{toast("Leave request sent to HR.");KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b)}}),
+    el("div",{class:"opts",style:"margin-top:10px"},...(hasIn&&!hasOut?[el("button",{class:"btn",style:"font-size:18px",text:"🔁 Change assignment",onclick:()=>{window.KASK={sid,at:Date.now()};window.KOK={sid,at:Date.now()};renderKiosk()}})]:[]),(STAFF[sid]||{}).supervisor?el("button",{class:"btn main",style:"font-size:18px",text:"📋 Supervisor report",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx",style:"margin-top:8px"});b.append(supRepForm(sid,curLoc(),()=>{KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b);b.scrollIntoView({behavior:"smooth"})}}):"",joCanPin(sid)?el("button",{class:"btn main",style:"font-size:18px",text:"🔧 Job order",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx",style:"margin-top:8px"});b.append(joForm({sid,loc:curLoc(),done:()=>{KSEL=null;window.KOK=null;renderKiosk()},cancel:()=>b.remove()}));panel.append(b);b.scrollIntoView({behavior:"smooth"})}}):"",el("button",{class:"btn",style:"font-size:18px",text:"📝 Apply for leave",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx"});b.append(leaveForm(sid,()=>{toast("Leave request sent to HR.");KSEL=null;window.KOK=null;renderKiosk()}));panel.append(b)}}),
       el("button",{class:"btn",style:"font-size:18px",text:"📅 My attendance",onclick:()=>{kioskIdle();const h=panel.querySelector(".kx");if(h)h.remove();const b=el("div",{class:"kx",style:"margin-top:8px"});const m=td.slice(0,7);
         b.append(el("div",{class:"small",style:"font-weight:700",text:silText(sid)}));
         for(let d=m+"-01";d<=td;d=addD(d,1)){const x=dayStatus(sid,d);const pp=PUNCH[d+"_"+sid]||{};if(!x.k&&!pp.in)continue;b.append(el("div",{class:"small",text:`${fmt(d,{weekday:"short",day:"numeric"})}: ${x.k?(AST[x.k]||[x.k])[0]:""}${pp.in?" · in "+tm(pp.in.at):""}${pp.out?" · out "+tm(pp.out.at):""}`}))}panel.append(b)}}),psMyBtn(sid,()=>panel,true),back));
@@ -8302,7 +8392,7 @@ function renderSummary(){RSEQ++;
 }
 function canTab(t){if(OWNER&&ROLE==="gm")return true;const A=TABS_FOR[ROLE]||[];if(["view","noaccess","kiosk"].includes(t))return true;if(A.includes(t))return true;const virt={clientreport:["head","list"],coordreport:["head"],fab:["proj","report"],permits:["proj","report"]};return !!(virt[t]&&virt[t].some(x=>A.includes(x)))}
 function switchTab(t){if(isKiosk()){renderKiosk();return}if(!canTab(t)){toast("That page isn't available for your role.");return}if(t==="recv"&&TABS_BAR[ROLE]&&!TABS_BAR[ROLE].includes("recv")){acctSub="recv";t="acct"}tab=t;setTimeout(noticeStrip,0);document.body.classList.remove("crmode");if(t!=="design")PHPROJ=null;if((isMnt()||isDesign())&&t==="report"){Object.entries(TABID).forEach(([k,id])=>$(id).setAttribute("aria-selected",k===barTab(t)));$("#bar").style.display="none";go(cur);return}Object.entries(TABID).forEach(([k,id])=>$(id).setAttribute("aria-selected",k===barTab(t)));$("#bar").style.display=t==="report"?"":"none";go(cur)}
-function go(d){try{const vw_=document.getElementById("view");if(vw_)vw_.classList.remove("lockedrep")}catch(e){}if(ROLE==="none"){renderNoAccess();return}if(!isKiosk()&&!canTab(tab)){tab=(TABS_FOR[ROLE]||["home"])[0];try{Object.entries(TABID).forEach(([k,id])=>$(id).setAttribute("aria-selected",k===barTab(tab)))}catch(e){}}try{updSubbar()}catch(e){}EDITING=null;cur=clamp(d);shift=pickShift(cur);rep=loadRep(cur);renderHeader();({report:renderReport,mat:renderMat,plan:renderPlan,buy:renderBuy,acct:renderAcct,recv:renderRecv,bill:renderBilling,roster:renderRoster,view:renderSummary,gm:renderGM,msg:renderMsg,list:renderList,setup:renderSetup,gantt:renderGantt,head:renderHead,home:(ROLE==="gm"?renderGM:renderHome),proj:renderProjects,sched:renderSched,docs:renderDocs,design:renderDesignStudio,est:renderEst,dproj:renderDesignProjects,myproj:renderMyProjects,clientreport:renderClientReport,coordreport:renderCoordReport,hr:renderHR,fab:renderFab,permits:renderPermits}[tab]||renderReport)();window.scrollTo(0,0)}
+function go(d){try{const vw_=document.getElementById("view");if(vw_)vw_.classList.remove("lockedrep")}catch(e){}if(ROLE==="none"){renderNoAccess();return}if(!isKiosk()&&!canTab(tab)){tab=(TABS_FOR[ROLE]||["home"])[0];try{Object.entries(TABID).forEach(([k,id])=>$(id).setAttribute("aria-selected",k===barTab(tab)))}catch(e){}}try{updSubbar()}catch(e){}EDITING=null;cur=clamp(d);shift=pickShift(cur);rep=loadRep(cur);renderHeader();({report:renderReport,mat:renderMat,jo:renderJO,plan:renderPlan,buy:renderBuy,acct:renderAcct,recv:renderRecv,bill:renderBilling,roster:renderRoster,view:renderSummary,gm:renderGM,msg:renderMsg,list:renderList,setup:renderSetup,gantt:renderGantt,head:renderHead,home:(ROLE==="gm"?renderGM:renderHome),proj:renderProjects,sched:renderSched,docs:renderDocs,design:renderDesignStudio,est:renderEst,dproj:renderDesignProjects,myproj:renderMyProjects,clientreport:renderClientReport,coordreport:renderCoordReport,hr:renderHR,fab:renderFab,permits:renderPermits}[tab]||renderReport)();window.scrollTo(0,0)}
 $("#prev").onclick=()=>go(addD(cur,-1));$("#next").onclick=()=>go(addD(cur,1));
 $("#pick").onclick=()=>{const p=$("#dpick");if(p.showPicker){try{p.showPicker();return}catch(e){}}p.style.opacity=1;p.style.pointerEvents="auto";p.focus()};
 $("#dpick").onchange=e=>{if(e.target.value)go(e.target.value)};
@@ -8438,6 +8528,7 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   db.doc("hr/settings").onSnapshot(d=>{HRSET=(d&&d.exists&&d.data())||{};if(tab==="hr"&&hrSub==="rules"&&!(document.activeElement&&document.activeElement.matches("input,textarea")))renderHR()},()=>{});
   window.HRSUBF=c_=>db.collection(c_).onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});if(c_==="punch"){PUNCH=n;if(isKiosk()){if(!KSEL&&!(document.activeElement&&document.activeElement.matches("input")))renderKiosk();return}if(tab==="home"&&document.getElementById("whereboard")){renderHome();return}if(tab!=="hr")return}else if(c_==="duty"){const mine=o=>JSON.stringify(Object.entries(o).filter(([,x])=>x.uid===ME));const ch=mine(n)!==mine(DUTY);DUTY=n;if(ch&&tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderHome();scrollTo(0,y)}if(tab!=="hr")return}else if(c_==="otapprove"){OTAPP=n;if(tab==="home"&&["head","pmc"].includes(ROLE)&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderHome()}catch(e){}}else if(c_==="aplan"){APLAN=n;if(isKiosk())return;if(tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;try{renderHome()}catch(e){}scrollTo(0,y)}return}else if(c_==="paycfg")PAYCFG=n;else if(c_==="memos")MEMOS=n;else if(c_==="staff")STAFF=n;else if(c_==="attend")ATTEND=n;else if(c_==="leaves")LEAVES=n;else if(c_==="disc")DISC=n;else if(c_==="evals")EVALS=n;else if(c_==="pnotes")PNOTES=n;else if(c_==="mnotices")MNOT=n;else COMP=n;hrBadge();if(tab==="hr"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select"))){const y=scrollY;renderHR();scrollTo(0,y)}},()=>{});
   ["staff","attend","leaves","mnotices","duty","punch","otapprove","paycfg","memos","aplan"].forEach(window.HRSUBF);try{subSensitive()}catch(e){}
+  db.collection("joborders").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});JOBS=n;if(!(document.activeElement&&document.activeElement.matches("input,textarea,select")))rerenderJO()},()=>{});
   db.collection("rosters").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});ROSTERS=n;if(tab==="roster"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderRoster()}catch(e){}if(tab==="home")try{renderHome()}catch(e){}});
   db.collection("notices").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});const before=myUnseen().length;NOTICES=n;noticeStrip();homeBadge();if(myUnseen().length>before)try{toast("📢 New notice for you");if(navigator.vibrate)navigator.vibrate([150,80,150])}catch(e){}if(tab==="home"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderHome()},()=>{});
   window.BANKSUBF=()=>db.collection("banks").onSnapshot(s_=>{const n={};s_.docs.forEach(d=>n[d.id]=d.data()||{});BANKS=n;if(tab==="acct"&&acctSub==="cash"&&!(document.activeElement&&document.activeElement.matches("input,select,textarea")))renderAcct();if(tab==="gm")renderGM()},()=>{});try{subSensitive()}catch(e){}
