@@ -2094,7 +2094,7 @@ function watchAllOrders(){const k=(db?"db":"")+"|"+ROLE+"|"+Object.keys(PROJS).s
 }
 function pendGroups(){const out=[];const src={...ALLORD};if(!src[P])src[P]=ORDERS;
   Object.entries(src).forEach(([pid,O])=>{const byG={};Object.entries(O||{}).forEach(([id,o])=>{if(pend_(o))(byG[o.group||id]=byG[o.group||id]||[]).push([id,o])});
-    Object.entries(byG).forEach(([g,G])=>{const o=G[0][1];out.push({kind:"order",pid,g,G,o,payee:o.supplier,amt:Math.round(G.reduce((t,[,x])=>t+(+x.amt||0),0)*100)/100,urgent:G.some(([,x])=>x.urgent),what:G.map(([,x])=>`${x.item} (${x.qty})`).join(", "),why:o.reason||"",need:o.eta||"",at:Math.min(...G.map(([,x])=>x.updatedAt||Date.now())),quotes:((G.find(([,x])=>x.quotes)||[])[1]||{}).quotes})})});
+    Object.entries(byG).forEach(([g,G])=>{const o=G[0][1];try{const px=poForGroup(pid,g);if(px&&px.status==="forgm")return}catch(e){}out.push({kind:"order",pid,g,G,o,payee:o.supplier,amt:Math.round(G.reduce((t,[,x])=>t+(+x.amt||0),0)*100)/100,urgent:G.some(([,x])=>x.urgent),what:G.map(([,x])=>`${x.item} (${x.qty})`).join(", "),why:o.reason||"",need:o.eta||"",at:Math.min(...G.map(([,x])=>x.updatedAt||Date.now())),quotes:((G.find(([,x])=>x.quotes)||[])[1]||{}).quotes})})});
   Object.entries(LEDGER).forEach(([id,e])=>{if(e.kind==="preq"&&e.status==="forgm")out.push({kind:"preq",lid:id,e,pid:e.project||"company",payee:e.payee,amt:+e.amount||0,urgent:!!e.urgent,what:e.desc||"",why:e.notes||"",need:e.due||"",at:e.createdAt||0})});
   try{out.push(...poPendItems())}catch(e){}
   return out.sort((a,b)=>(b.urgent-a.urgent)||(a.at-b.at));
@@ -4340,14 +4340,14 @@ function poEditor(x,id){
   const box=el("div",{class:"panel"});const I={};
   const lab=(t,e,full)=>el("label",{class:"small lbl",style:full?"flex-basis:100%":""},el("span",{text:t}),e);
   const inp=(k,t,v,type,attrs={})=>{const i=el("input",{class:"fin",type:type||"text","aria-label":t,...attrs});i.value=v??"";I[k]=i;return lab(t,i)};
-  const su=x.supplier||{};const pid=x.project||P;const legacy=!!x.group&&!x.poOrders;
+  const su=x.supplier||{};let pid=x.project&&PROJS[x.project]?x.project:"";const legacy=!!x.group&&!x.poOrders;
   const supIn=el("input",{class:"fin",list:"suplist","aria-label":"Supplier"});supIn.value=su.name||"";
   const fill=()=>{const r=Object.values(SUPPLIERS||{}).find(z=>(z.name||"").toLowerCase()===supIn.value.trim().toLowerCase());if(!r)return;[["saddr","address"],["scontact","contact"],["sphone","phone"],["semail","email"],["stin","tin"]].forEach(([k,f])=>{if(I[k]&&!I[k].value&&r[f])I[k].value=r[f]});const c=creditOf(supIn.value);if(c&&!id){pay.value="Credit line – PDC";try{if(!pmode.value)pmode.value="Credit line"}catch(e){}}};
   supIn.addEventListener("change",fill);
   const pay=el("select",{class:"fin","aria-label":"Payment"},...PAYS.map(v=>el("option",{value:v,text:v})));pay.value=PAYS.includes(x.pay)?x.pay:(CREDIT_PAYS.includes(x.pay)?"Credit line – PDC":"Cash on order");
   const pmode=el("select",{class:"fin","aria-label":"Mode of payment"},el("option",{value:"",text:"Choose…"}),...PAYMODES.map(v=>el("option",{value:v,text:v})));pmode.value=x.payMode||"";
   const dest=el("select",{class:"fin","aria-label":"Deliver to (place)"},...DESTS().map(([k,t])=>el("option",{value:k,text:t})));dest.value=x.dest||"site";
-  const addrOf=d=>d==="workshop"?"Silong workshop / warehouse, Cubi":d==="office"?"Silong office, Cubi":((PROJS[pid]||{}).address||projName(pid)+" – site");
+  const addrOf_=(q,d)=>d==="workshop"?"Silong workshop / warehouse, Cubi":d==="office"?"Silong office, Cubi":(q?((PROJS[q]||{}).address||projName(q)+" – site"):"");const addrOf=d=>addrOf_(pid,d);
   dest.addEventListener("change",()=>{I.deliver.value=addrOf(dest.value)});
   const how=el("select",{class:"fin","aria-label":"How it gets there"},el("option",{value:"supplier",text:"Supplier delivers"}),el("option",{value:"pickup",text:"Silong pick-up"}),el("option",{value:"courier",text:"Courier / delivery app"}));how.value=x.how||"supplier";
   const cat=el("select",{class:"fin","aria-label":"Category"},...CATS.map(c=>el("option",{value:c,text:c})));cat.value=CATS.includes(x.category)?x.category:"Materials not on the list";
@@ -4378,7 +4378,11 @@ function poEditor(x,id){
     if(!supIn.value&&z.sup&&z.sup!=="Supplier"){supIn.value=z.sup;fill()}if(!I.eta.value&&z.need)I.eta.value=z.need;refreshPick()});
   const QI=quotesInput();
   const err=el("div",{class:"sendmsg"});
-  box.append(el("div",{class:"mini"},el("b",{style:"font-size:17px",text:id?`Edit ${id}`:"🧾 New purchase order"}),el("div",{class:"small",text:`${projName(pid)} – change the project at the top of the page first if it's for another one.`})),
+  const projSel=el("select",{class:"fin","aria-label":"Project",style:"font-weight:700"},el("option",{value:"",text:"Choose the project…"}),...Object.entries(PROJS).filter(([k,c])=>c&&!c.archived).map(([k,c])=>el("option",{value:k,text:c.name||k})));projSel.value=pid;
+  projSel.disabled=legacy||(!!id&&!!(POS[id]||{}).group&&!(POS[id]||{}).poOrders);
+  projSel.addEventListener("change",()=>{const was=pid;pid=projSel.value;if(I.deliver&&(!I.deliver.value||I.deliver.value===addrOf_(was,dest.value)))I.deliver.value=addrOf(dest.value);refreshPick();recalc()});
+  box.append(el("div",{class:"mini"},el("b",{style:"font-size:17px",text:id?`Edit ${id}`:"🧾 New purchase order"}),el("div",{class:"small",text:"Choose the project this PO is for – it is printed on the PO exactly as chosen here."})),
+    el("div",{class:"form"},lab("Project *",projSel)),
     el("div",{class:"mini",style:"margin-top:10px"},el("b",{text:"1. Supplier"})),
     el("div",{class:"form"},lab("Supplier",supIn),inp("saddr","Address",su.addr),inp("scontact","Contact person",su.contact),inp("sphone","Phone / Viber",su.phone),inp("semail","Email",su.email),inp("stin","Supplier TIN",su.tin),inp("quote","Supplier quote no. / date",x.quoteRef)),
     el("div",{class:"mini",style:"margin-top:10px"},el("b",{text:"2. Items"})),legacy?"":el("div",{class:"form"},pick),rows,
@@ -4391,13 +4395,13 @@ function poEditor(x,id){
     inp("by","Prepared by",(x.preparedBy||{}).name||((ACCESS[ME]||{}).name||NAMES[ME]||(ROLE==="gm"?"AAT-Gen Manager":""))),err);
   I.del.addEventListener("input",recalc);vat.addEventListener("change",recalc);
   (x.items&&x.items.length?x.items:[{}]).forEach(addRow);refreshPick();
-  const collect=()=>({project:pid,group:x.group||"",orderIds:x.orderIds||[],fromPending:true,poOrders:!!x.poOrders||!x.group,reqId:x.reqId||"",msgId:x.msgId||"",
+  const collect=()=>({project:projSel.value,group:x.group||"",orderIds:x.orderIds||[],fromPending:true,poOrders:!!x.poOrders||!x.group,reqId:x.reqId||"",msgId:x.msgId||"",
     supplier:{name:supIn.value.trim(),addr:I.saddr.value.trim(),contact:I.scontact.value.trim(),phone:I.sphone.value.trim(),email:I.semail.value.trim(),tin:I.stin.value.trim()},
     quoteRef:I.quote.value.trim(),date:x.date||iso(new Date()),dest:dest.value,deliverTo:I.deliver.value.trim(),how:how.value,eta:I.eta.value,etaNote:I.etaNote.value.trim(),pay:pay.value,payMode:pmode.value,items:getItems(),delivery:+I.del.value||0,vat:vat.value,
     category:cat.value,reason:I.why.value.trim(),urgent:urg.value==="u",notes:I.notes.value.trim(),
     preparedBy:{uid:ME,name:I.by.value.trim(),title:ROLE==="buy"?"Purchasing Officer":ROLE==="gm"?"General Manager":""}});
   const bad=t=>{err.textContent=t;err.style.display="block";toast(t)};
-  const check=d=>{err.style.display="none";if(!d.supplier.name){supIn.focus();bad("Add the supplier.");return false}if(!d.items.length){bad("Add at least one item.");return false}
+  const check=d=>{err.style.display="none";if(!d.project||!PROJS[d.project]){projSel.focus();bad("Choose the project this PO is for.");return false}if(!d.supplier.name){supIn.focus();bad("Add the supplier.");return false}if(!d.items.length){bad("Add at least one item.");return false}
     const nb=d.items.find(l=>!l.desc||!l.qty||!l.price);if(nb){bad("Every item needs a description, quantity and unit price.");return false}
     if(d.items.some(l=>!l.plan)&&!legacy&&!d.reason&&!boqOn()){I.why.focus();bad("Say why the items not on the BOQ are needed.");return false}
     if(!d.payMode){pmode.focus();bad("Choose the mode of payment.");return false}if(!d.deliverTo){I.deliver.focus();bad("Add the delivery address.");return false}if(!d.eta){I.eta.focus();bad("Add the delivery date.");return false}return true};
@@ -4414,7 +4418,7 @@ function poEditor(x,id){
     try{const T=poTotals(d);
       if(id){ // edit while waiting for the GM: rewrite the order lines too
         const old=POS[id]||{};let G=null;
-        if(old.poOrders){const oc=ocol(d.project);for(const o_ of old.orderIds||[]){try{await db.collection(oc).doc(o_).delete()}catch(e){}}G=await writeOrders({...d,no:id},old.group,null);d.orderIds=G.map(([k])=>k);d.group=old.group}
+        if(old.poOrders){const oc=ocol(old.project||d.project);for(const o_ of old.orderIds||[]){try{await db.collection(oc).doc(o_).delete()}catch(e){}}G=await writeOrders({...d,no:id},old.group,null);d.orderIds=G.map(([k])=>k);d.group=old.group}
         await db.collection("pords").doc(id).update({...d,total:T.total,updatedAt:Date.now()});await saveSup(d);toast(`${id} updated.`);poEdit=null;poView=id;poGo();return}
       let quotes=[];try{quotes=await QI.get()}catch(e){toast("A quote file couldn't be saved – continuing without it.")}
       const no=await poNextNo();const g="g"+Date.now();d.no=no;
@@ -4447,10 +4451,11 @@ async function poAuto(pid,g,G){const x=poFromGroup(pid,g,G);const no=await poNex
 // ---- approvals hook ----
 async function poDecide(no,ok,why,quiet){const x=POS[no];if(!x)return;if(ok&&!x.payMode){toast("Choose the mode of payment first – tap Edit on this PO.");throw new Error("Mode of payment missing")}const now=Date.now();
   await db.collection("pords").doc(no).update(ok?{status:"approved",approvedAt:now,approvedBy:ME,updatedAt:now}:{status:"declined",declineReason:why||"",declinedAt:now,updatedAt:now});
+  if(x.group&&x.project)try{const td_=iso(new Date());const q=await db.collection(ocol(x.project)).where("group","==",x.group).get();
+    for(const d of q.docs){const o=d.data();if(!pend_(o))continue;await d.ref.update(ok?{status:"ordered",approvedOn:td_,updatedAt:now}:{status:"cancelled",rejected:true,cancelledOn:td_,cancelReason:"Not approved by the AAT-Gen Manager"+(why?": "+why:""),updatedAt:now})}}catch(e){}
   if(!quiet)await poMsg("buy",ok?`PO APPROVED – send it to the supplier: ${no} – ${(x.supplier||{}).name}`:`PO not approved: ${no}`,ok?`${peso(x.total)} · ${projName(x.project)}\nDownload the PDF in Orders → Purchase orders and send it to the supplier, then tap "Sent to supplier".`:(why?"Reason: "+why:""),x.project)}
 async function poOnGroup(pid,g,ok,why){const x=poForGroup(pid,g);if(x&&x.status==="forgm")try{await poDecide(x.no,ok,why,true)}catch(e){}}
 function poPendItems(){poWatch();const out=[];Object.values(POS).forEach(x=>{if(x.status!=="forgm")return;
-  if(x.group&&x.fromPending){const O=(x.project===P?ORDERS:(ALLORD||{})[x.project])||{};if(Object.values(O).some(o=>o&&o.group===x.group&&pend_(o)))return}
   out.push({kind:"po",no:x.no,x,pid:x.project||"company",payee:`${x.no} · ${(x.supplier||{}).name||""}`,amt:+x.total||0,urgent:false,what:(x.items||[]).map(l=>l.desc).join(", "),why:"",need:x.eta||"",at:x.createdAt||0})});return out}
 function poApvCard(it){const x=it.x;const c=el("div",{class:"qcard"});
   c.append(el("div",{class:"qtop"},el("b",{text:`📄 ${x.no} – ${(x.supplier||{}).name} – ${peso(x.total)}`})),
@@ -4506,7 +4511,7 @@ function poLegacyGroups(){const out=[];const src={...(ALLORD||{})};src[P]=ORDERS
   return out}
 function poCount(){return Object.values(POS).filter(x=>x.status==="forgm"||x.status==="approved").length}
 function poSection(){poWatch();const b=el("div",{});
-  if(poMine())b.append(el("button",{class:"btn main",style:"width:100%;margin-bottom:10px",text:"+ New purchase order",onclick:()=>{poView=null;poEdit={x:{project:P,date:iso(new Date()),vat:"incl",items:[],poOrders:true}};poGo()}}));
+  if(poMine())b.append(el("button",{class:"btn main",style:"width:100%;margin-bottom:10px",text:"+ New purchase order",onclick:()=>{poView=null;poEdit={x:{project:"",date:iso(new Date()),vat:"incl",items:[],poOrders:true}};poGo()}}));
   const A=Object.values(POS).filter(x=>x.status==="approved");
   if(A.length&&poMine())b.append(el("div",{class:"panel",style:"border:2px solid var(--done);margin-bottom:10px"},el("b",{text:`✓ ${A.length} approved – send to the supplier`}),...A.map(x=>el("div",{class:"opts"},el("button",{class:"btn",text:`📄 ${x.no} · ${(x.supplier||{}).name} · ${peso(x.total)}`,onclick:()=>{poView=x.no;poGo()}})))));
   b.append(poList());
