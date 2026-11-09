@@ -1402,13 +1402,14 @@ function renderBuy(){RSEQ++;if(buySub==="plan")buySub="today";
   const CX=Object.entries(ORDERS).filter(([,o])=>o.status==="cancelled"&&o.cancelReason).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0)).slice(0,15);
   const cxBox=CX.length?sec("Cancelled orders",`${CX.length}`,null,el("div",{class:"panel"},...CX.map(([,o])=>el("div",{class:"mini"},el("b",{text:`${fd(o.cancelledOn)} · ${o.item}`}),` · ${o.supplier||""}${o.orderNo?" #"+o.orderNo:""} · `,el("i",{text:o.cancelReason}))))):"";
   const PEND=Object.entries(ORDERS).filter(([,o])=>pend_(o));
+  if(ROLE==="gm"){const IT=pendGroups().filter(it=>it.kind==="order"||it.kind==="po");BQ.pend=null;if(IT.length)BQ.pend=sec("Waiting for your approval",`${IT.length}`,"All projects. Only you can approve these. Once approved they leave your list and go to Purchasing (Jay) and Accounts (Arman) as APPROVED BY GM.",el("div",{},...IT.map(it=>apvCard(it))))}
   if(PEND.length){const byG={};PEND.forEach(([id,o])=>(byG[o.group]=byG[o.group]||[]).push([id,o]));
-    if(ROLE==="gm"){const IT=pendGroups().filter(it=>it.kind==="order"&&it.pid===P);BQ.pend=sec("Waiting for your approval",`${IT.length}`,"Only you can approve these. Once approved they leave your list and go to Purchasing (Jay) and Accounts (Arman) as APPROVED BY GM.",el("div",{},...IT.map(it=>apvCard(it))))}
+    if(ROLE==="gm"){}
     else BQ.pend=(sec("Waiting for GM approval",`${Object.keys(byG).length}`,"Unplanned purchases above the approval limit. Don't order until approved.",el("div",{class:"panel"},...Object.values(byG).map(G=>{const o=G[0][1];const Q_=(G.find(([,x])=>x.quotes)||[])[1];const ur_=G.some(([,x])=>x.urgent);return el("div",{class:"mini"},ur_?el("span",{class:"tag warn",style:"margin-right:6px",text:"Urgent"}):"",el("b",{text:`${o.supplier} – ${peso(G.reduce((t,[,x])=>t+(+x.amt||0),0))}`}),` · ${o.category} · ${G.map(([,x])=>x.item).join(", ")}`,Q_?quotesView(Q_.quotes,o.supplier):"",el("div",{class:"opts"},el("button",{class:"btn",text:ur_?"Not urgent any more":"🚨 Mark urgent",onclick:async e=>{e.target.disabled=true;try{for(const[id]of G)await db.collection(col("orders")).doc(id).update({urgent:!ur_,updatedAt:Date.now()});toast(ur_?"No longer urgent.":"Marked urgent for the AAT-Gen Manager.")}catch(err){toast("Not saved.");e.target.disabled=false}}}),poBtnFor(P,G)))}))))}
   const NF=()=>sec("New order / quote",null,`For quotes on planned items (tick the items it replaces) and for anything not on the plan. Not on the plan, or more than ${peso(SETTINGS.unplannedLimit)} over the plan, needs the AAT-Gen Manager's approval first.`,unplannedForm());
   // ---- calm rows: nothing open until tapped, numbers only ----
   const nOrd=Object.keys(grp).length;const nLate=Object.values(grp).filter(G=>{const o=G[0].o;return !o.noDate&&o.eta&&o.eta<td}).length;
-  const nPend=PEND.length?new Set(PEND.map(([,o])=>o.group)).size:0;
+  const nPend=ROLE==="gm"?pendGroups().filter(it=>it.kind==="order"||it.kind==="po").length:(PEND.length?new Set(PEND.map(([,o])=>o.group)).size:0);
   const host=el("div",{id:"buyrows"});
   host.append(el("div",{class:"small",style:"margin:8px 0 6px;font-weight:700;letter-spacing:.04em",text:"ORDERS"}));
   {const CAN=ROLE==="buy";const LG=Object.values(grp).filter(G=>{const o=G[0].o;return !o.noDate&&o.eta&&o.eta<=td});
