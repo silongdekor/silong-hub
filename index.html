@@ -1402,7 +1402,7 @@ function renderBuy(){RSEQ++;if(buySub==="plan")buySub="today";
   const CX=Object.entries(ORDERS).filter(([,o])=>o.status==="cancelled"&&o.cancelReason).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0)).slice(0,15);
   const cxBox=CX.length?sec("Cancelled orders",`${CX.length}`,null,el("div",{class:"panel"},...CX.map(([,o])=>el("div",{class:"mini"},el("b",{text:`${fd(o.cancelledOn)} · ${o.item}`}),` · ${o.supplier||""}${o.orderNo?" #"+o.orderNo:""} · `,el("i",{text:o.cancelReason}))))):"";
   const PEND=Object.entries(ORDERS).filter(([,o])=>pend_(o));
-  if(ROLE==="gm"){const IT=pendGroups().filter(it=>it.kind==="order"||it.kind==="po");BQ.pend=null;if(IT.length)BQ.pend=sec("Waiting for your approval",`${IT.length}`,"All projects. Only you can approve these. Once approved they leave your list and go to Purchasing (Jay) and Accounts (Arman) as APPROVED BY GM.",el("div",{},...IT.map(it=>apvCard(it))))}
+  if(ROLE==="gm"){const IT=pendGroups().filter(it=>it.kind==="order"||it.kind==="po");BQ.pend=null;BQ.pendReq=true;if(IT.length)BQ.pend=sec("Waiting for your approval",`${IT.length}`,"All projects. Only you can approve these. Once approved they leave your list and go to Purchasing (Jay) and Accounts (Arman) as APPROVED BY GM.",el("div",{},...IT.map(it=>apvCard(it))))}
   if(PEND.length){const byG={};PEND.forEach(([id,o])=>(byG[o.group]=byG[o.group]||[]).push([id,o]));
     if(ROLE==="gm"){}
     else BQ.pend=(sec("Waiting for GM approval",`${Object.keys(byG).length}`,"Unplanned purchases above the approval limit. Don't order until approved.",el("div",{class:"panel"},...Object.values(byG).map(G=>{const o=G[0][1];const Q_=(G.find(([,x])=>x.quotes)||[])[1];const ur_=G.some(([,x])=>x.urgent);return el("div",{class:"mini"},ur_?el("span",{class:"tag warn",style:"margin-right:6px",text:"Urgent"}):"",el("b",{text:`${o.supplier} – ${peso(G.reduce((t,[,x])=>t+(+x.amt||0),0))}`}),` · ${o.category} · ${G.map(([,x])=>x.item).join(", ")}`,Q_?quotesView(Q_.quotes,o.supplier):"",el("div",{class:"opts"},el("button",{class:"btn",text:ur_?"Not urgent any more":"🚨 Mark urgent",onclick:async e=>{e.target.disabled=true;try{for(const[id]of G)await db.collection(col("orders")).doc(id).update({urgent:!ur_,updatedAt:Date.now()});toast(ur_?"No longer urgent.":"Marked urgent for the AAT-Gen Manager.")}catch(err){toast("Not saved.");e.target.disabled=false}}}),poBtnFor(P,G)))}))))}
@@ -1451,7 +1451,7 @@ function renderBuy(){RSEQ++;if(buySub==="plan")buySub="today";
     b.append(H(`RECEIVED – LAST 14 DAYS (${BQ.nRecv||0})`),BQ.recv?BQ.recv():el("p",{class:"empty",text:"Nothing received in the last 14 days."}));
     return b}));
   if(["gm","acct","buy","head"].includes(ROLE)){const AR_=aplRows().filter(r=>r.status==="Ongoing").length;host.append(buyRow("b_apl","✅","Approved by GM – status",AR_,AR_?"ongoing":"",()=>aplView()))}
-  host.append(buyRow("b_pend","⏳",ROLE==="gm"?"Waiting for your approval":"Waiting for GM approval",nPend,nPend?(ROLE==="gm"?"tap to approve":"on hold"):"",()=>BQ.pend||el("p",{class:"empty",text:"Nothing waiting for approval."})));
+  host.append(buyRow("b_pend","⏳",ROLE==="gm"?"Waiting for your approval":"Waiting for GM approval",nPend,nPend?(ROLE==="gm"?"tap to approve":"on hold"):"",()=>{const w=el("div",{});w.append(BQ.pend||el("p",{class:"empty",text:"No POs or orders waiting for approval."}));if(ROLE==="gm")w.append(gmAllReqsPanel());return w}));
   {const nA=Object.values(POS).filter(x=>x.status==="approved").length,nW=Object.values(POS).filter(x=>x.status==="forgm").length;host.append(buyRow("b_po","🧾","Purchase orders",poCount(),nA?`${nA} to send`:(nW?`${nW} waiting for GM`:"tap to open"),()=>poSection()))}
   {const since=addD(td,-14);const RC=Object.entries(ORDERS).filter(([,o])=>o&&o.receivedOn&&o.receivedOn>=since&&o.status!=="cancelled").sort((a,b)=>(b[1].receivedOn||"").localeCompare(a[1].receivedOn||""));
    BQ.nRecv=RC.length;BQ.recv=()=>!RC.length?el("p",{class:"empty",text:"Nothing received in the last 14 days."}):(el("div",{class:"panel"},...RC.map(([id,o])=>el("div",{class:"drow"},el("div",{class:"dtxt"},el("b",{text:`${fd(o.receivedOn)} · ${o.supplier||""}${o.orderNo?" #"+o.orderNo:""}`}),` – ${o.item||""}${o.qty?" – "+o.qty:""}`,el("div",{class:"small",text:`${peso(o.amt||0)}${o.receivedNote?" · "+o.receivedNote:""}`})),
@@ -8164,8 +8164,22 @@ function planImport(){
 async function renderMat(){
   const v=$("#view");v.replaceChildren();
   if(!db){v.append(el("p",{class:"empty",text:"Material requests appear here once you're signed in."}));return}
-  const R=allReqs();v.append(el("section",{},el("h2",{},"Material requests",el("span",{class:"n",text:`${R.filter(r=>(REQST[r.id]||"open")==="open").length} open`})),matReqPanel()));
+  const R=allReqs();v.append(el("section",{},el("h2",{},"Material requests",el("span",{class:"n",text:`${R.filter(r=>(REQST[r.id]||"open")==="open").length} open`})),ROLE==="gm"?gmAllReqsPanel():"",ROLE==="gm"?el("div",{class:"small",style:"margin:10px 0 4px",text:"This project – full history:"}):"",matReqPanel()));
   matReport(v)}
+// ---- GM: site material requests from ALL projects (2026-11-09) ----
+function gmAllReqsPanel(){const box=el("div",{class:"panel"},el("div",{class:"mini",text:"Loading site material requests from all projects…"}));
+  (async()=>{const rows=[];for(const pid of Object.keys(PROJS)){const c_=PROJS[pid]||{};if(c_.archived||c_.type==="design"||c_.type==="maintenance")continue;let D;try{D=await loadProjectData(pid)}catch(e){continue}
+      const RQ=D.RQ||{};Object.keys(D.reports||{}).sort(cmpK).forEach(k=>((D.reports[k]||{}).req||[]).forEach((r,i)=>{const id=k+"#"+i;const st=RQ[id]||"open";if(["open","endorsed","held"].includes(st))rows.push({pid,id,r,from:k,st})}))}
+    box.replaceChildren(el("div",{class:"mini"},el("b",{text:`Site material requests – all projects (${rows.length})`})));
+    if(!rows.length){box.append(el("p",{class:"empty",text:"No site material requests waiting."}));return}
+    let last="";rows.sort((a,b)=>projName(a.pid).localeCompare(projName(b.pid))||b.from.localeCompare(a.from)).forEach(x=>{const r=x.r;
+      if(x.pid!==last){last=x.pid;box.append(el("div",{class:"mini",style:"margin-top:10px;font-weight:700;color:var(--accent,#1B7194)",text:"📁 "+projName(x.pid)}))}
+      const g=el("span",{class:"chips"});
+      [["approved","Approve","good"],["rejected","Not approved","bad"]].forEach(([k,lab,cl])=>g.append(el("button",{class:"opt "+cl,text:lab,onclick:async e=>{e.target.disabled=true;
+        try{await db.doc(x.pid===BARN?"meta/requests":"p/"+x.pid+"/meta/requests").set({[x.id]:k},{merge:true});if(x.pid===P)REQST={...REQST,[x.id]:k};row.style.opacity=".45";g.replaceChildren(el("span",{class:"tag",text:REQLAB[k]}));toast(`${REQLAB[k]} – ${projName(x.pid)}.`)}catch(er){toast("Not saved – try again.");e.target.disabled=false}}})));
+      const row=el("div",{class:"rep"},el("span",{},r.urgent?el("span",{class:"tag due",text:"Urgent"}):"",el("b",{text:r.item||""}),` – ${r.qty||"?"}${r.need?" · by "+fd(r.need):""}${r.act?" · for "+r.act:""}`,
+        el("div",{class:"small",text:`${projName(x.pid)} · ${fmt(x.from.split("_")[0],{weekday:"short",day:"numeric",month:"short"})}, ${x.from.split("_")[1]} shift · ${REQLAB[x.st]}`})),g);box.append(row)})})();
+  return box}
 function matReqPanel(){const owner=OWNER&&ROLE==="gm";
   const R=allReqs().reverse();
   const p=el("div",{class:"panel"});
