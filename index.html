@@ -580,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-07"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-18"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -3203,6 +3203,63 @@ function pGrp(icon,title,who,roles,hint,...btns){const mine=roles.includes(ROLE)
     el("div",{style:"display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"},el("b",{style:"font-size:15px",text:`${icon} ${title}`}),mine?el("span",{class:"tag",style:"background:var(--accent,#1B7194);color:#fff;border-color:transparent",text:"For you"}):""),
     el("div",{class:"small",style:"font-weight:600;margin-top:2px",text:"For: "+who}),hint?el("div",{class:"small",style:"margin-top:2px",text:hint}):"",
     el("div",{class:"projbtns",style:"margin-top:8px"},...btns.filter(Boolean)))}
+// ---- GM only: project cost summary (2026-11-18) – reads existing records, writes nothing ----
+function pcDayRate(sid,d){const H=((COMP[sid]||{}).history||[]).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));if(!H.length)return null;let c=H[0];H.forEach(h=>{if((h.date||"")<=d)c=h});const b=+c.basic||0;if(!b)return null;return c.rate==="daily"?b:b*12/261}
+async function projCostData(pid){try{poWatch()}catch(e){}const c=PROJS[pid]||{};const name=c.name||pid;
+  let M={};try{const d=await db.doc(mpPath(pid)).get();M=d.exists?(d.data()||{}):{}}catch(e){}
+  let pay=[];try{pay=await companyPay()}catch(e){}
+  const paidAmt=p=>+(p.paid&&(p.paid.paidAmt!=null?p.paid.paidAmt:p.paid.actual))||+p.amt||0;
+  const G={sup:["🧱 Materials & purchases (POs)",0,0],sub:["🤝 Subcontractors",0,0],site:["🚐 Site running – transport, allowances, food, lodging, cash advances",0,0],lab:["👷 Labour – crew pay from site attendance (estimate)",0,0],fees:["📄 Fees, permits & professional",0,0],dues:["🏛 Government dues & other",0,0]};
+  let payrollTagged=0;
+  pay.filter(p=>p.project===pid).forEach(p=>{if((p.src==="plan"||p.src==="payplan")&&!p.paid)return;let g=pgOf(p);if(g==="payroll"){payrollTagged+=p.paid?paidAmt(p):0;return}if(!G[g])g="dues";if(p.paid)G[g][1]+=paidAmt(p);else G[g][2]+=+p.amt||0});
+  Object.values(LEDGER).filter(e=>e.kind==="advance"&&e.project===pid&&!e.void).forEach(e=>{G.site[1]+=+e.amount||0});
+  Object.values(POS||{}).filter(x=>x.imported&&x.project===pid&&!["void","declined"].includes(x.status)).forEach(x=>{if(x.paidOn)G.sup[1]+=+x.total||0;else G.sup[2]+=+x.total||0});
+  const subK=Object.values(SUBCONS||{}).filter(x=>!x.archived&&x.project===pid).reduce((t,x)=>t+(+x.contract||0),0);
+  const subLeft=Math.max(0,subK-G.sub[1]-G.sub[2]);
+  // labour from site attendance
+  const site="Site – "+name;let days=0,lab=0;const noPay={};
+  Object.values(PUNCH||{}).forEach(r=>{if(!r||r.test||!r.sid||!(r.in||r.lunchOut||r.out))return;const here=r.loc===site||(r.in&&r.in.loc===site);if(!here)return;days++;const rt=pcDayRate(r.sid,r.date||"");if(rt==null){noPay[r.sid]=(STAFF[r.sid]||{}).name||r.name||r.sid;return}lab+=rt});
+  G.lab[1]=Math.round(lab);
+  const R=recvAll().filter(x=>x.r.project===pid);const billed=R.reduce((t,x)=>t+(x.C.billed||0),0),received=R.reduce((t,x)=>t+(x.C.received||0),0),recvContract=R.reduce((t,x)=>t+(x.C.contract||0),0);
+  const contract=+M.contract||recvContract||+c.contract||0,budget=+M.cost||0;
+  const rows=Object.values(G);const paid=rows.reduce((t,r)=>t+r[1],0),owed=rows.reduce((t,r)=>t+r[2],0);
+  return {name,contract,budget,rows,paid,owed,subK,subLeft,days,noPay:Object.values(noPay),payrollTagged,billed,received}}
+function projCostBox(pid){const d=el("details",{style:"border:2px solid var(--accent,#1B7194);border-radius:12px;padding:10px 12px;margin-top:12px"},
+    el("summary",{style:"cursor:pointer"},el("b",{style:"font-size:15px",text:"💰 Cost summary – only you see this"}),el("div",{class:"small",text:"Contract vs what this project has cost so far – materials, labour, subcontractors, transport, allowances, food and lodging"})));
+  let done=false;d.addEventListener("toggle",async()=>{if(!d.open||done)return;done=true;const w=el("p",{class:"empty",text:"Adding it up…"});d.append(w);
+    let X;try{X=await projCostData(pid)}catch(e){w.textContent="Couldn't load the figures – try again.";done=false;return}
+    const L=(a,b,st)=>el("div",{class:"mini",style:"display:flex;justify-content:space-between;gap:10px"+(st?";"+st:"")},el("span",{text:a}),el("b",{text:b}));
+    const tot=X.paid+X.owed,profit=X.contract?X.contract-tot:null;
+    const box=el("div",{style:"margin-top:8px"});
+    box.append(el("div",{class:"panel"},L("Contract value",X.contract?peso(X.contract):"not set"),X.budget?L("Budget cost (money plan)",peso(X.budget)):"",L("Billed to the client",peso(X.billed)),L("Received from the client",peso(X.received))));
+    const t=el("table",{style:"width:100%;border-collapse:collapse;font-size:13px;margin-top:8px"},el("tr",{},...["Cost","Paid","Still owed"].map((h,i)=>el("th",{style:"padding:4px;border-bottom:2px solid var(--line);text-align:"+(i?"right":"left"),text:h}))),
+      ...X.rows.map(r=>el("tr",{style:"border-bottom:1px solid var(--line)"},el("td",{style:"padding:4px",text:r[0]}),el("td",{style:"padding:4px;text-align:right;white-space:nowrap",text:peso(Math.round(r[1]))}),el("td",{style:"padding:4px;text-align:right;white-space:nowrap",text:r[2]?peso(Math.round(r[2])):"–"}))),
+      el("tr",{},el("td",{style:"padding:4px;font-weight:700",text:"Total"}),el("td",{style:"padding:4px;text-align:right;font-weight:700",text:peso(Math.round(X.paid))}),el("td",{style:"padding:4px;text-align:right;font-weight:700",text:peso(Math.round(X.owed))})));
+    box.append(el("div",{style:"overflow-x:auto"},t));
+    box.append(el("div",{class:"panel",style:"margin-top:8px"},L("Total cost so far (paid + owed)",peso(Math.round(tot)),"font-size:15px"),X.subLeft?L("Subcontract balance not yet billed",peso(Math.round(X.subLeft))):"",X.budget?L("Budget left",peso(Math.round(X.budget-tot)),X.budget-tot<0?"color:var(--late)":""):"",
+      profit!=null?L("Contract minus cost so far",peso(Math.round(profit)),"font-size:15px;"+(profit<0?"color:var(--late)":"color:var(--done)")):"",L("Cash position (received – paid)",peso(Math.round(X.received-X.paid)),X.received-X.paid<0?"color:var(--late)":"")));
+    const N=[`Labour = ${X.days} person-days timed in at "Site – ${X.name}" × each person's own basic daily pay (monthly pay × 12 ÷ 261). Overtime and allowances paid through payroll are not included.`];
+    if(X.noPay.length)N.push(`⚠ No salary on file in HR for: ${X.noPay.join(", ")} – their site days are not costed yet.`);
+    if(X.payrollTagged)N.push(`Payroll Accounts recorded against this project: ${peso(Math.round(X.payrollTagged))}. Not added to the total, so crew pay isn't counted twice.`);
+    if(X.subLeft)N.push("Subcontract balance = signed subcontract amounts not yet billed. It is shown for reference and not added to the total.");
+    box.append(el("div",{class:"small",style:"margin-top:8px"},...N.map(n=>el("div",{style:"margin-top:4px",text:n}))));
+    w.replaceWith(box)});
+  return d}
+function companyCostBox(){const d=el("details",{style:"border:2px solid var(--accent,#1B7194);border-radius:12px;padding:10px 12px;margin-top:12px"},
+    el("summary",{style:"cursor:pointer"},el("b",{style:"font-size:15px",text:"🏢 Company expenses – only you see this"}),el("div",{class:"small",text:"Costs recorded under \"Company\", not a project – office payroll, rent, utilities, dues and general expenses. Kept separate from every project's cost."})));
+  let done=false;d.addEventListener("toggle",async()=>{if(!d.open||done)return;done=true;const w=el("p",{class:"empty",text:"Adding it up…"});d.append(w);
+    let pay=[];try{pay=await companyPay()}catch(e){w.textContent="Couldn't load the figures – try again.";done=false;return}
+    const td=iso(new Date()),m0=td.slice(0,8)+"01";const paidAmt=p=>+(p.paid&&(p.paid.paidAmt!=null?p.paid.paidAmt:p.paid.actual))||+p.amt||0;
+    const G={payroll:["👥 Payroll – office and regular staff",0,0,0],dues:["🏛 Rent, utilities, government dues, loans",0,0,0],site:["🚐 Transport, allowances, cash advances",0,0,0],sup:["🧱 Purchases",0,0,0],fees:["📄 Fees, permits & professional",0,0,0],sub:["🤝 Subcontractors",0,0,0]};
+    pay.filter(p=>p.project==="company"||!p.project||!PROJS[p.project]).forEach(p=>{if((p.src==="plan"||p.src==="payplan")&&!p.paid)return;let g=pgOf(p);if(!G[g])g="dues";if(p.paid){const a=paidAmt(p);G[g][1]+=a;if((p.paid.on||"")>=m0)G[g][3]+=a}else G[g][2]+=+p.amt||0});
+    Object.values(LEDGER).filter(e=>e.kind==="advance"&&(e.project==="company"||!e.project)&&!e.void).forEach(e=>{const a=+e.amount||0;G.site[1]+=a;if((e.given||"")>=m0)G.site[3]+=a});
+    const R=Object.values(G).filter(r=>r[1]||r[2]);const T=i=>R.reduce((t,r)=>t+r[i],0);const c=(x,b)=>el("td",{style:"padding:4px;text-align:right;white-space:nowrap"+(b?";font-weight:700":""),text:x?peso(Math.round(x)):"–"});
+    const t=el("table",{style:"width:100%;border-collapse:collapse;font-size:13px;margin-top:8px"},el("tr",{},...["Expense","Paid this month","Paid – all time","Still owed"].map((h,i)=>el("th",{style:"padding:4px;border-bottom:2px solid var(--line);text-align:"+(i?"right":"left"),text:h}))),
+      ...R.map(r=>el("tr",{style:"border-bottom:1px solid var(--line)"},el("td",{style:"padding:4px",text:r[0]}),c(r[3]),c(r[1]),c(r[2]))),
+      el("tr",{},el("td",{style:"padding:4px;font-weight:700",text:"Total"}),c(T(3),1),c(T(1),1),c(T(2),1)));
+    w.replaceWith(el("div",{},R.length?el("div",{style:"overflow-x:auto"},t):el("p",{class:"empty",text:"No company expenses recorded yet."}),
+      el("div",{class:"small",style:"margin-top:6px",text:"These are not added to any project. Only records Accounts entered under \"Company\" show here."})))});
+  return d}
 async function renderProjects(){
   const my=++RSEQ;const v=$("#view");v.replaceChildren();const td=iso(new Date());
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to see projects."}));return}
@@ -3238,10 +3295,11 @@ async function renderProjects(){
           el("button",{class:"btn",style:"text-align:left",text:"📊 Gantt chart",onclick:()=>openGantt(id)}),
           canPlan()?G(id,"📋 BOQ",()=>switchTab("plan")):"",
           G(id,"🚚 Deliveries",()=>switchTab("mat")))]}
+    if(ROLE==="gm")body.push(projCostBox(id));
     const d=el("details",{class:"panel gmcat"});
     d.append(el("summary",{},el("span",{style:"font-weight:700;font-size:17px",text:c.name||id}),el("span",{class:"small",style:"margin-left:auto;white-space:nowrap",text:right})));
     gmAccordion(d);d.append(el("div",{style:"margin-top:8px"},...body,gmCloser(d)));if(id===P&&Object.keys(PROJS).length===1)d.open=true;rowsOut.push(d)}
-  host.replaceChildren(...rowsOut);
+  host.replaceChildren(...rowsOut);if(ROLE==="gm")host.append(companyCostBox());
   const more=el("div",{style:"margin-top:14px"},el("div",{class:"small",style:"font-weight:700;letter-spacing:.04em;margin-bottom:6px",text:"MORE"}));
   if((TABS_FOR[ROLE]||[]).includes("setup"))more.append(el("button",{class:"btn",style:"width:100%;text-align:left",text:"➕ Start a new project",onclick:()=>switchTab("setup")}));
   v.append(more);
