@@ -1947,6 +1947,7 @@ function bpiPending(){return Object.entries(XFER).filter(([,x])=>x.status==="awa
 async function sendBpiRequest(item,amount,account,note,opt){opt=opt||{};
   const id="x"+Date.now();await db.collection("transfers").doc(id).set({...item.ref_,payee:item.payee,what:item.what||"",amount:+amount,due:item.due,project:item.project||"company",account:account||"",note:note||"",urgent:!!opt.urgent,...(opt.apv?{apv:opt.apv}:{}),status:"awaiting",preparedAt:Date.now(),preparedBy:await myId()});
   await db.collection("messages").doc("m"+Date.now()).set({project:item.project||P,projName:projName(item.project||P),type:"bpi",to:"gm",from:ROLE,fromId:await myId(),subject:`${opt.urgent?"URGENT – ":""}BIZLINK SENT – READY FOR AUTHORIZATION: ${peso(+amount)} to ${item.payee}`,body:`${item.what||""}\nDue ${fd(item.due)}${account?"\nAccount: "+account:""}${note?"\n"+note:""}`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()});
+  if(ROLE!=="gm")tgGM(`${opt.urgent?"URGENT – ":""}BPI BizLink – please authorize: ${peso(+amount)} to ${item.payee}`,`${projName(item.project||"company")}${item.what?" · "+item.what:""}\nDue ${fd(item.due)}${note?"\n"+note:""}`);
   return id;
 }
 const METHODS=["Cash","Check","Bank transfer"];
