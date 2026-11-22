@@ -4346,7 +4346,9 @@ async function poNextNo(){const y=String(new Date().getFullYear());const ref=db.
   const pick=n=>{let k=n,no;do{k++;no=`PO-${y}-${String(k).padStart(4,"0")}`}while(POS[no]);return [k,no]};
   if(db.runTransaction)return db.runTransaction(async t=>{const s=await t.get(ref);const d=s.exists?s.data():{};const[k,no]=pick(d.year===y?(+d.n||0):0);t.set(ref,{year:y,n:k});return no});
   const s=await ref.get();const d=s.exists?s.data():{};const[k,no]=pick(d.year===y?(+d.n||0):0);await ref.set({year:y,n:k});return no}
-async function poMsg(to,subject,body,pid){try{await db.collection("messages").doc("m"+Date.now()+Math.floor(Math.random()*1000)).set({project:pid&&pid!=="company"?pid:P,projName:projName(pid||"company"),type:"update",to,from:ROLE,fromId:await myId(),subject,body,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(e){}}
+const TG_URL="https://script.google.com/macros/s/AKfycbw6blJpTcP6SUX0YvWStk_BE7-y_pKKiTXQtC4jZCiLQE3j8wG5ZNv8jdIzWll_Io3aig/exec",TG_KEY="Martin1480@";
+function tgGM(subject,body){try{fetch(TG_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify({secret:TG_KEY,text:"🔔 "+subject+(body?"\n"+body:""),link:"https://silongdekor.github.io/silong-hub/"})}).catch(()=>{})}catch(e){}}
+async function poMsg(to,subject,body,pid){if(to==="gm"&&ROLE!=="gm")tgGM(subject,body);try{await db.collection("messages").doc("m"+Date.now()+Math.floor(Math.random()*1000)).set({project:pid&&pid!=="company"?pid:P,projName:projName(pid||"company"),type:"update",to,from:ROLE,fromId:await myId(),subject,body,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(e){}}
 // ---- PDF ----
 function buildPoPdf(doc,x){const s=BS(),T=poTotals(x);const W=210,M=16,CW=W-2*M,TEAL=[27,113,144],LINE=[207,216,220],GREY=[93,100,102];let y=14;
   const P_=t=>String(t==null?"":t).replace(/₱/g,"PHP ");const txt=(t,X,Y,o)=>doc.text(Array.isArray(t)?t.map(P_):P_(t),X,Y,o);const wrap=(t,w)=>doc.splitTextToSize(P_(t),w);
