@@ -580,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23d"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23e"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -1788,6 +1788,7 @@ async function renderAcct(){
   R("requests","🧾","Payment requests",nReq,nReq?"to check":"");
   R("pdc","✍","Post-dated checks (PDCs)",0,"tap to open");
   H("PROJECTS & STAFF");
+  if(OWNER||["gm","acct"].includes(ROLE)){let n_=0;try{n_=tsNeed().length}catch(e){}R("tsbiz","🏦","Payroll & two-step BizLink",n_,n_?`${n_} step${n_>1?"s":""} to do`:"Checking → Savings → staff",()=>tsView())}
   if(OWNER||["gm","acct"].includes(ROLE)){let n_=0,b_=0;try{const X=srAll(pay);n_=X.openN;b_=X.bal}catch(e){}R("subreg","🤝","Subcontractor register",n_,n_?`${n_} billing${n_>1?"s":""} to pay`:(b_?`${peso(b_)} contract balance`:"tap to open"),()=>subRegView(pay))}
   R("mplan","🛡","Project money plan",0,"profit & contingency",()=>moneyPlanView(pay));
   R("overview","📈","Project overview",0,"tap to open");{const nc=liqToCheck().length,no=openDraws(e=>drawLiqDue(e)<td).length;R("pools","👛","Allowances & liquidations",nc,no?`${no} overdue`:(nc?"to check":"tap to open"),()=>el("div",{},liqPanel(),...poolsView()))}R("adv","💵","Cash advances",0,"tap to open");{const nD=Object.values(PSLIPS).filter(x=>x.status==="draft").length;R("payslips","🧾","Payslips",nD,nD?"to check & release":"tap to open",()=>psView())}
@@ -3235,7 +3236,7 @@ async function projCostData(pid){try{poWatch()}catch(e){}const c=PROJS[pid]||{};
   let M={};try{const d=await db.doc(mpPath(pid)).get();M=d.exists?(d.data()||{}):{}}catch(e){}
   let pay=[];try{pay=await companyPay()}catch(e){}
   const paidAmt=p=>+(p.paid&&(p.paid.paidAmt!=null?p.paid.paidAmt:p.paid.actual))||+p.amt||0;
-  const G={sup:["🧱 Materials & purchases (POs)",0,0],sub:["🤝 Subcontractors",0,0],site:["🚐 Site running – transport, allowances, food, lodging, cash advances",0,0],lab:["👷 Labour – crew pay from site attendance (estimate)",0,0],fees:["📄 Fees, permits & professional",0,0],dues:["🏛 Government dues & other",0,0]};
+  const G={sup:["🧱 Materials & purchases (POs)",0,0],sub:["🤝 Subcontractors",0,0],site:["🚐 Site running – transport, allowances, food, lodging, cash advances",0,0],lab:["👷 Labour – pay for site days (basic, overtime, night diff, allowances)",0,0],fees:["📄 Fees, permits & professional",0,0],dues:["🏛 Government dues & other",0,0]};
   let payrollTagged=0;
   pay.filter(p=>p.project===pid).forEach(p=>{if((p.src==="plan"||p.src==="payplan")&&!p.paid)return;let g=pgOf(p);if(g==="payroll"){payrollTagged+=p.paid?paidAmt(p):0;return}if(!G[g])g="dues";if(p.paid)G[g][1]+=paidAmt(p);else G[g][2]+=+p.amt||0});
   Object.values(LEDGER).filter(e=>e.kind==="advance"&&e.project===pid&&!e.void).forEach(e=>{G.site[1]+=+e.amount||0});
@@ -3246,18 +3247,29 @@ async function projCostData(pid){try{poWatch()}catch(e){}const c=PROJS[pid]||{};
   // labour from site attendance – a day counts if any time-in, lunch, time-out, travel or move that day was at this site;
   // if the day has no site at all, it falls back to the person's assigned project in HR
   const site="Site – "+name;const nm=name.toLowerCase();let days=0,daysKiosk=0,daysAssigned=0,lab=0,offDays=0;const noPay={},per={};
+  // 23 Nov 2026: full labour cost per site day. Uses the person's payslip for that pay period when there is one
+  // (gross pay ÷ days worked in the period – includes OT, night diff, allowances, holiday pay). Without a payslip:
+  // daily basic + approved OT ×1.25 + night diff ×0.10 + allowances. Plus 13th month (basic ÷ 12) and employer contributions (about 12% of basic, estimate).
+  const PSX={};Object.values(PSLIPS||{}).forEach(x=>{if(!x||x.status==="replaced"||!x.staff||!x.period)return;(PSX[x.staff]=PSX[x.staff]||[]).push(x)});
+  let m13=0,er=0,dSlip=0,dEst=0;
+  const dayCost=(sid,d,rt,pu)=>{const x=(PSX[sid]||[]).find(y=>y.period.from<=d&&d<=y.period.to);
+    if(x){const dd=+(x.att&&x.att.days)||0;let g=+x.gross||0;if(!g)try{g=psTot(x).gross}catch(e){}if(dd>0&&g>0){dSlip++;return g/dd}}
+    dEst++;let c=rt;const hr=rt/8;
+    try{if(pu&&pu.weekly)c+=(+pu.wkOT||0)*hr*1.25;else ot_dayRecord(sid,d).forEach(z=>{if(z.ap&&z.ap.status==="approved")c+=(+z.ap.hrs||0)*hr*1.25;c+=(+z.nd||0)*hr*0.10})}catch(e){}
+    try{const cc=m13Rate(sid,d);if(cc){const al=allowTotal(cc.allow);c+=cc.rate==="daily"?al:al*12/261}}catch(e){}
+    return c};
   const atSite=x=>{const t=String(x||"").trim().toLowerCase();return !!t&&(t===site.toLowerCase()||(t.startsWith("site")&&t.includes(nm)))};
   const asg=sid=>{const a=String((STAFF[sid]||{}).project||"").trim().toLowerCase();return !!a&&(a===pid.toLowerCase()||a===nm||a.includes(nm)||nm.includes(a))};
   Object.values(PUNCH||{}).forEach(r=>{if(!r||r.test||!r.sid||!(r.in||r.lunchOut||r.out))return;
     const L=[r.loc,...["in","lunchOut","lunchIn","out","arrive","dropOff","travelStart","moveStart"].map(k=>r[k]&&r[k].loc),...(r.assigns||[]).map(a=>a&&a.to)].filter(Boolean);
     let how="";if(L.some(atSite))how="k";else if(!L.some(x=>/^site/i.test(String(x).trim()))&&asg(r.sid)){if(L.some(x=>/silong office|warehouse/i.test(x)))offDays++;else how="a"}
     if(!how)return;days++;if(how==="k")daysKiosk++;else daysAssigned++;
-    const nmP=(STAFF[r.sid]||{}).name||r.name||r.sid;const rt=pcDayRate(r.sid,r.date||"");per[nmP]=per[nmP]||[0,0];per[nmP][0]++;if(rt==null){noPay[r.sid]=nmP;return}per[nmP][1]+=rt;lab+=rt});
-  G.lab[1]=Math.round(lab);
+    const nmP=(STAFF[r.sid]||{}).name||r.name||r.sid;const rt=pcDayRate(r.sid,r.date||"");per[nmP]=per[nmP]||[0,0];per[nmP][0]++;if(rt==null){noPay[r.sid]=nmP;return}const dc=dayCost(r.sid,r.date||"",rt,r);per[nmP][1]+=dc;lab+=dc;m13+=rt/12;er+=rt*0.12});
+  G.lab[1]=Math.round(lab);G.m13=["🎁 13th month pay – this project's share (basic ÷ 12)",0,Math.round(m13)];G.er=["🏛 Employer SSS / PhilHealth / Pag-IBIG (estimate, about 12% of basic)",Math.round(er),0];
   const R=recvAll().filter(x=>x.r.project===pid);const billed=R.reduce((t,x)=>t+(x.C.billed||0),0),received=R.reduce((t,x)=>t+(x.C.received||0),0),recvContract=R.reduce((t,x)=>t+(x.C.contract||0),0);
   const contract=+M.contract||recvContract||+c.contract||0,budget=+M.cost||0;
-  const rows=Object.values(G);const paid=rows.reduce((t,r)=>t+r[1],0),owed=rows.reduce((t,r)=>t+r[2],0);
-  return {name,contract,budget,rows,paid,owed,subK,subLeft,days,noPay:Object.values(noPay),payrollTagged,billed,received,daysKiosk,daysAssigned,offDays,per}}
+  const rows=[G.sup,G.sub,G.site,G.lab,G.m13,G.er,G.fees,G.dues];const paid=rows.reduce((t,r)=>t+r[1],0),owed=rows.reduce((t,r)=>t+r[2],0);
+  return {name,contract,budget,rows,paid,owed,subK,subLeft,days,dSlip,dEst,noPay:Object.values(noPay),payrollTagged,billed,received,daysKiosk,daysAssigned,offDays,per}}
 function projCostBox(pid){const d=el("details",{style:"border:2px solid var(--accent,#1B7194);border-radius:12px;padding:10px 12px;margin-top:12px"},
     el("summary",{style:"cursor:pointer"},el("b",{style:"font-size:15px",text:"💰 Cost summary – only you see this"}),el("div",{class:"small",text:"Contract vs what this project has cost so far – materials, labour, subcontractors, transport, allowances, food and lodging"})));
   let done=false;d.addEventListener("toggle",async()=>{if(!d.open||done)return;done=true;const w=el("p",{class:"empty",text:"Adding it up…"});d.append(w);
@@ -3271,8 +3283,8 @@ function projCostBox(pid){const d=el("details",{style:"border:2px solid var(--ac
       el("tr",{},el("td",{style:"padding:4px;font-weight:700",text:"Total"}),el("td",{style:"padding:4px;text-align:right;font-weight:700",text:peso(Math.round(X.paid))}),el("td",{style:"padding:4px;text-align:right;font-weight:700",text:peso(Math.round(X.owed))})));
     box.append(el("div",{style:"overflow-x:auto"},t));
     box.append(el("div",{class:"panel",style:"margin-top:8px"},L("Total cost so far (paid + owed)",peso(Math.round(tot)),"font-size:15px"),X.subLeft?L("Subcontract balance not yet billed",peso(Math.round(X.subLeft))):"",X.budget?L("Budget left",peso(Math.round(X.budget-tot)),X.budget-tot<0?"color:var(--late)":""):"",
-      profit!=null?L("Contract minus cost so far",peso(Math.round(profit)),"font-size:15px;"+(profit<0?"color:var(--late)":"color:var(--done)")):"",L("Cash position (received – paid)",peso(Math.round(X.received-X.paid)),X.received-X.paid<0?"color:var(--late)":"")));
-    const N=[`Labour = ${X.days} person-days × each person's own basic daily pay (monthly pay × 12 ÷ 261): ${X.daysKiosk} days timed in at "Site – ${X.name}"${X.daysAssigned?`, plus ${X.daysAssigned} days where the time-in had no site chosen and HR has the person assigned to this project`:""}. Overtime and allowances paid through payroll are not included.`];
+      profit!=null?L("Contract minus cost so far",peso(Math.round(profit)),"font-size:15px;"+(profit<0?"color:var(--late)":"color:var(--done)")):"",X.subLeft?L("Projected final cost (incl. subcontract balance)",peso(Math.round(tot+X.subLeft))):"",X.subLeft&&X.contract?L("Projected profit",`${peso(Math.round(X.contract-tot-X.subLeft))} (${Math.round((X.contract-tot-X.subLeft)/X.contract*100)}%)`,"font-size:15px;"+(X.contract-tot-X.subLeft<0?"color:var(--late)":"color:var(--done)")):(profit!=null&&X.contract?L("Profit margin so far",`${Math.round(profit/X.contract*100)}%`):""),L("Cash position (received – paid)",peso(Math.round(X.received-X.paid)),X.received-X.paid<0?"color:var(--late)":"")));
+    const N=[`Labour = ${X.days} person-days at this site: ${X.daysKiosk} days timed in at "Site – ${X.name}"${X.daysAssigned?`, plus ${X.daysAssigned} days where the time-in had no site chosen and HR has the person assigned to this project`:""}. ${X.dSlip} day${X.dSlip===1?"":"s"} costed from the actual payslip (gross pay incl. overtime, night diff, allowances and holiday pay ÷ days worked in that pay period); ${X.dEst} day${X.dEst===1?"":"s"} without a payslip yet, costed as daily basic + approved overtime + night diff + allowances. 13th month and employer contributions are added on top.`];
     if(X.offDays)N.push(`⚠ ${X.offDays} days by people assigned to this project were timed in at the Silong office / warehouse – not counted here.`);
     {const P_=Object.entries(X.per).sort((a,b)=>b[1][0]-a[1][0]);if(P_.length)N.push("Days counted per person: "+P_.map(([n,v])=>`${n} ${v[0]} day${v[0]>1?"s":""}${v[1]?" ("+peso(Math.round(v[1]))+")":" (no pay on file)"}`).join(" · "));else N.push("⚠ No time-ins found for this site yet. Check that the site attendance phone is set to this project.")}
     if(X.noPay.length)N.push(`⚠ No salary on file in HR for: ${X.noPay.join(", ")} – their site days are not costed yet.`);
@@ -7893,6 +7905,53 @@ function acScRecordPay(id,c){const f=el("details",{class:"panel",style:"margin-t
   const on=el("input",{class:"fin",type:"date","aria-label":"Date paid"});on.value=iso(new Date());const am=numIn("Amount ₱");const nt=el("input",{class:"fin",placeholder:"Note (e.g. 30% downpayment, progress billing 1)","aria-label":"Note"});const rf=el("input",{class:"fin",placeholder:"BPI ref / check no. (optional)","aria-label":"Reference"});
   f.append(el("div",{class:"form"},el("label",{class:"small fdate"},"Paid on ",on),lab_(am),nt,rf,el("button",{class:"btn main",text:"Save payment",onclick:async e=>{if(!(+am.value)||!on.value){toast("Add the date and amount.");return}e.target.disabled=true;
     const x={on:on.value,amt:+am.value,note:nt.value.trim(),ref:rf.value.trim(),at:Date.now(),by:await myId()};try{const d={...c,payments:[...(c.payments||[]),x],updatedAt:Date.now()};await db.collection("subcons").doc(id).set(d);SUBCONS[id]=d;toast("Payment saved.");renderAcct()}catch(er){toast("Not saved.");e.target.disabled=false}}})));return f}
+
+// ---------- PAYROLL & TWO-STEP BIZLINK (23 Nov 2026) ----------
+// When payroll (or any big payment) sits in Checking: step 1 moves it Checking → Savings, step 2 pays from Savings.
+// AAT authorizes each step in BizLink; each step pops up on her Telegram. Step 2 can only be sent after step 1 is authorized.
+BPIST.queued="Step 2 – waiting for step 1 to be authorized";
+function tsGroups(){const G={};Object.entries(XFER||{}).forEach(([id,x])=>{if(!x.ts)return;(G[x.ts]=G[x.ts]||{}).steps=(G[x.ts].steps||[]);G[x.ts].steps.push([id,x])});
+  return Object.entries(G).map(([g,v])=>({g,steps:v.steps.sort((a,b)=>(a[1].step||0)-(b[1].step||0))})).sort((a,b)=>(b.steps[0][1].preparedAt||0)-(a.steps[0][1].preparedAt||0))}
+function tsNeed(){const out=[];tsGroups().forEach(G=>G.steps.forEach(([id,x],i)=>{if(x.status==="authorized")out.push(id);if(x.status==="queued"&&i>0&&["authorized","done"].includes(G.steps[i-1][1].status))out.push(id)}));return out}
+async function tsBankMove(from,to,a,on,note){const upd=async(id,d)=>{const b=BANKS[id]||bankList().find(x=>x.id===id)||{};const {id:_i,committed:_c,avail:_a,...keep}=b;await db.collection("banks").doc(id).set({...keep,name:b.name||"Bank account",balance:expectedBalanceSafe(id)+d,asOf:on,statedAt:Date.now()})};
+  await db.collection("cashmoves").doc("cm"+Date.now()).set({kind:"xfer",from,to,amount:a,on,note,by:ME,at:Date.now()});await upd(from,-a);await upd(to,a)}
+function tsView(){const box=el("div",{});const can=OWNER||["gm","acct"].includes(ROLE);const BL=bankList();
+  const ck=BL.find(b=>/check|current/i.test((b.type||"")+" "+(b.name||""))),sv=BL.find(b=>/saving/i.test((b.type||"")+" "+(b.name||"")));
+  box.append(el("p",{class:"hint",style:"margin:0 0 8px",text:"For payroll (or any payment) entered in BPI BizLink. If the money is in Checking, tick two steps: step 1 moves it to Savings, step 2 pays from Savings. AAT gets a Telegram alert for each step and authorizes it in BizLink. Step 2 can only be sent after step 1 is authorized."}));
+  if(can){const f=el("div",{class:"askbox"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);
+    const pd_=nextPay_();const wh=el("input",{class:"fin","aria-label":"What for"});wh.value=`Payroll – pay date ${fd(pd_)}`;
+    const py=el("input",{class:"fin","aria-label":"Paid to"});py.value="Staff payroll (BizLink payroll batch)";
+    const am=numIn("Amount ₱");const du=el("input",{class:"fin",type:"date","aria-label":"Pay date"});du.value=pd_;
+    const two=el("input",{type:"checkbox"});two.checked=true;const ug=el("input",{type:"checkbox"});const nt=el("input",{class:"fin",placeholder:"Note (optional)","aria-label":"Note"});
+    f.append(el("div",{class:"mini"},el("b",{text:"New BizLink payment"})),el("div",{class:"form"},L("What for",wh),L("Paid to",py),L("Amount ₱",am),L("Pay date",du),L("Note",nt)),
+      el("label",{class:"small",style:"display:flex;gap:6px;align-items:center;margin-top:6px"},two,el("span",{text:`Two steps – move it from Checking${ck?" ("+ck.name+")":""} to Savings${sv?" ("+sv.name+")":""} first`})),
+      el("label",{class:"small",style:"display:flex;gap:6px;align-items:center"},ug,el("span",{text:"Urgent"})),
+      el("div",{class:"opts"},el("button",{class:"btn main",text:"Step 1 entered in BizLink – send to AAT for authorization",onclick:async e=>{const a=+am.value||0;if(!a){am.focus();return}e.target.disabled=true;const g="ts"+Date.now();
+        try{if(two.checked){await sendBpiRequest({payee:`Transfer to Savings${sv?" – "+sv.name:""} (from Checking)`,what:`Step 1 of 2 – funds for: ${wh.value.trim()}`,due:du.value,project:"company",ref_:{ts:g,step:1,of:2,src:"ts",from:ck?ck.id:"",to:sv?sv.id:""}},a,sv?sv.name:"Savings",nt.value.trim(),{urgent:ug.checked});
+            await db.collection("transfers").doc("x"+(Date.now()+7)).set({ts:g,step:2,of:2,src:"ts",payee:py.value.trim(),what:`Step 2 of 2 – ${wh.value.trim()}`,amount:a,due:du.value,project:"company",account:"",note:nt.value.trim(),urgent:ug.checked,status:"queued",preparedAt:Date.now(),preparedBy:await myId()});
+            toast("Step 1 sent – AAT gets a Telegram alert. Step 2 opens here once she authorizes it.")}
+          else{await sendBpiRequest({payee:py.value.trim(),what:wh.value.trim(),due:du.value,project:"company",ref_:{ts:g,step:1,of:1,src:"ts"}},a,"",nt.value.trim(),{urgent:ug.checked});toast("Sent – AAT gets a Telegram alert.")}
+          renderAcct()}catch(er){toast("Not saved – check the connection.");e.target.disabled=false}}})));
+    box.append(f)}
+  const G=tsGroups().slice(0,15);if(!G.length)box.append(el("div",{class:"mini empty",text:"No BizLink payments here yet."}));
+  G.forEach(T=>{const card=el("div",{class:"panel",style:"margin-top:8px;border-left:4px solid #1F6F6B"});const x0=T.steps[T.steps.length-1][1];
+    card.append(el("b",{text:`${(x0.what||"").replace(/^Step \d of \d – /,"")} – ${peso(x0.amount)}`}),el("div",{class:"small",text:`Pay date ${fd(x0.due)}${x0.urgent?" · URGENT":""}`}));
+    T.steps.forEach(([id,x],i)=>{const prev=i>0?T.steps[i-1][1]:null;const lab=x.of>1?`Step ${x.step} of ${x.of}: `:"";
+      const row=el("div",{class:"mini",style:"margin-top:6px"},el("div",{},el("b",{text:lab+(x.step===1&&x.of>1?"Checking → Savings":x.payee)}),` · ${peso(x.amount)} · `,el("span",{class:"tag"+(x.status==="awaiting"?" due":""),text:x.status==="queued"&&prev&&["authorized","done"].includes(prev.status)?"Ready – enter it in BizLink":(BPIST[x.status]||x.status)})));
+      if(can&&x.status==="queued"&&prev&&["authorized","done"].includes(prev.status))row.append(el("div",{class:"opts"},el("button",{class:"btn main",text:"Step 2 entered in BizLink – send to AAT for authorization",onclick:async e=>{e.target.disabled=true;
+        try{await db.collection("transfers").doc(id).update({status:"awaiting",preparedAt:Date.now(),preparedBy:await myId()});
+          await db.collection("messages").doc("m"+Date.now()).set({project:P,projName:projName("company"),type:"bpi",to:"gm",from:ROLE,fromId:await myId(),subject:`${x.urgent?"URGENT – ":""}BIZLINK STEP 2 – READY FOR AUTHORIZATION: ${peso(x.amount)} to ${x.payee}`,body:`${x.what||""}\nPay date ${fd(x.due)}`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()});
+          tgGM(`${x.urgent?"URGENT – ":""}BPI BizLink STEP 2 of 2 – please authorize: ${peso(x.amount)} to ${x.payee}`,`${x.what||""}\nPay date ${fd(x.due)} · step 1 (Checking → Savings) already authorized`);toast("Step 2 sent – AAT gets a Telegram alert.");renderAcct()}catch(er){toast("Not saved.");e.target.disabled=false}}})));
+      if(can&&x.status==="authorized"){const ref=el("input",{class:"fin",placeholder:"BPI reference no.","aria-label":"BPI reference"});ref.value=x.bpiRef||"";
+        row.append(el("div",{class:"form"},ref,el("button",{class:"btn main",text:x.step===1&&x.of>1?"Confirm moved to Savings":"Confirm paid",onclick:async e=>{e.target.disabled=true;
+          try{await db.collection("transfers").doc(id).update({status:"done",bpiRef:ref.value.trim(),doneAt:Date.now()});
+            if(x.step===1&&x.of>1&&x.from&&x.to)await tsBankMove(x.from,x.to,+x.amount||0,iso(new Date()),"BizLink step 1 – "+(x.what||""));
+            toast(x.step===1&&x.of>1?"Done – balances moved to Savings. Now enter step 2 in BizLink.":"Done. Record the payroll as paid in To pay today.");renderAcct()}catch(er){toast("Not saved.");e.target.disabled=false}}})))}
+      if(x.status==="rejected")row.append(el("div",{class:"small",style:"color:var(--late)",text:"Not authorized"+(x.rejectReason?": "+x.rejectReason:"")}));
+      card.append(row)});
+    box.append(card)});
+  return box}
+function nextPay_(){const td=iso(new Date());const ym=td.slice(0,7);const n=new Date(td.slice(0,4),+td.slice(5,7),1);const nx=iso(n).slice(0,7);return [ym+"-05",ym+"-20",nx+"-05"].find(x=>x>=td)}
 
 // ---------- SUBCONTRACTOR REGISTER (23 Nov 2026) ----------
 // One entry per subcontractor; each quote/contract (a "subcons" card) sits under it.
