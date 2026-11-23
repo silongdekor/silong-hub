@@ -580,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23e"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23f"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -1525,7 +1525,7 @@ function ledgerPayables0(scope){
     cat:e.kind==="payroll"?(["gov","tax"].includes(e.ptype)?"Government remittances":"Payroll"):e.category,sc:e.sc||"",budget:e.planKey?payplanOf(e.project||BARN)[e.planKey.slice(3)]:undefined,project:e.project,src:"ledger",paid:e.paidOn?{on:e.paidOn,ref:e.paidRef,bank:e.paidBank||null,paidAmt:e.paidAmt,at:e.paidAt}:null}))}
 async function scopeData(){
   if(acctScope==="project"){const D={reports,ORD:ORDERS,PD:PAID};return {pay:[...projPayables(D,P),...ledgerPayables("project")],D:{[P]:D}}}
-  if(Date.now()-ALLCACHE.at>20000||!ALLCACHE.data[P]){const out={};for(const id of Object.keys(PROJS))out[id]=await loadProjectData(id);ALLCACHE={at:Date.now(),data:out}}
+  if(Date.now()-ALLCACHE.at>600000||!ALLCACHE.data[P]){const out={};for(const id of Object.keys(PROJS))out[id]=await loadProjectData(id);ALLCACHE={at:Date.now(),data:out}}
   ALLCACHE.data[P]={reports,ORD:ORDERS,PD:PAID,RQ:REQST,acts:ACTS,dels:DELS,cfg:CFG};
   const pay=[];for(const[id,D]of Object.entries(ALLCACHE.data))pay.push(...projPayables(D,id));pay.push(...ledgerPayables("company"));
   return {pay,D:ALLCACHE.data};
