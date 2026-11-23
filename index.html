@@ -580,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-18b"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23b"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -1786,6 +1786,7 @@ async function renderAcct(){
   R("requests","🧾","Payment requests",nReq,nReq?"to check":"");
   R("pdc","✍","Post-dated checks (PDCs)",0,"tap to open");
   H("PROJECTS & STAFF");
+  if(OWNER||["gm","acct"].includes(ROLE)){let n_=0,b_=0;try{const X=srAll(pay);n_=X.openN;b_=X.bal}catch(e){}R("subreg","🤝","Subcontractor register",n_,n_?`${n_} billing${n_>1?"s":""} to pay`:(b_?`${peso(b_)} contract balance`:"tap to open"),()=>subRegView(pay))}
   R("mplan","🛡","Project money plan",0,"profit & contingency",()=>moneyPlanView(pay));
   R("overview","📈","Project overview",0,"tap to open");{const nc=liqToCheck().length,no=openDraws(e=>drawLiqDue(e)<td).length;R("pools","👛","Allowances & liquidations",nc,no?`${no} overdue`:(nc?"to check":"tap to open"),()=>el("div",{},liqPanel(),...poolsView()))}R("adv","💵","Cash advances",0,"tap to open");{const nD=Object.values(PSLIPS).filter(x=>x.status==="draft").length;R("payslips","🧾","Payslips",nD,nD?"to check & release":"tap to open",()=>psView())}
   H("COMPANY");
@@ -2830,8 +2831,30 @@ function cashView(){
   if(!WD.length)wb.append(el("div",{class:"mini empty",text:"No cash movements logged."}));
   if(edit)wb.append(el("div",{class:"opts"},el("button",{class:"btn",text:"+ Log withdrawal / deposit",onclick:ev=>{if(!ev.target.parentNode.querySelector(".cmform"))ev.target.parentNode.append(cashMoveForm("withdraw"))}})));
   out.push(sec("Withdrawals & deposits",null,"Log cash you take out or put in, with the reason, so the bank figure always matches reality.",wb));
+  try{out.push(acXferSec(edit))}catch(e){}
   return out;
 }
+// ---------- TRANSFER BETWEEN OWN ACCOUNTS (e.g. Savings → Checking) – not income, not an expense ----------
+function acXferSec(edit){const wb=el("div",{class:"panel"});
+  const X=Object.values(CASHMOVES).filter(m=>m.kind==="xfer"&&!m.void).sort((a,b)=>(b.on||"").localeCompare(a.on||""));
+  const nm=id=>(BANKS[id]||bankList().find(x=>x.id===id)||{}).name||"—";
+  X.slice(0,20).forEach(m=>wb.append(el("div",{class:"mini",text:`${fd(m.on)} · ${peso(m.amount)} · ${nm(m.from)} → ${nm(m.to)}${m.note?" · "+m.note:""}`})));
+  if(!X.length)wb.append(el("div",{class:"mini empty",text:"No transfers yet."}));
+  if(edit)wb.append(el("div",{class:"opts"},el("button",{class:"btn",text:"⇄ Transfer between accounts",onclick:ev=>{if(!ev.target.parentNode.querySelector(".xform"))ev.target.parentNode.append(acXferForm())}})));
+  return sec("Transfers between accounts",null,"Moving money between Silong's own accounts (e.g. Savings to Checking). It is not income and not an expense – only the two balances change.",wb)}
+function acXferForm(){const box=el("div",{class:"askbox xform"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);
+  const BL=bankList();const opt=()=>BL.map(b=>el("option",{value:b.id,text:`${b.name}${b.type?" ("+b.type+")":""} – ${peso(expectedBalanceSafe(b.id))}`}));
+  const fr=el("select",{class:"fin","aria-label":"From account"},...opt());const to=el("select",{class:"fin","aria-label":"To account"},...opt());
+  const sv=BL.find(b=>/saving/i.test(b.type||b.name||"")),ck=BL.find(b=>/check|current/i.test(b.type||b.name||""));if(sv)fr.value=sv.id;if(ck)to.value=ck.id;else if(BL[1])to.value=BL[1].id;
+  const am=el("input",{class:"fin n",type:"number",step:"any","aria-label":"Amount"});const on=el("input",{class:"fin",type:"date","aria-label":"Date"});on.value=iso(new Date());
+  const note=el("input",{class:"fin","aria-label":"Note",placeholder:"Note (optional) – e.g. moved to protect it"});
+  box.append(el("div",{class:"mini"},el("b",{text:"Transfer between accounts"})),el("div",{class:"form"},L("Amount ₱",am),L("Date",on),L("From",fr),L("To",to),L("Note",note)),
+    el("div",{class:"opts"},el("button",{class:"btn main",text:"Save transfer",onclick:async e=>{const a=+am.value||0;if(!a){am.focus();return}if(fr.value===to.value){toast("Choose two different accounts.");return}e.target.disabled=true;
+      try{await db.collection("cashmoves").doc("cm"+Date.now()).set({kind:"xfer",from:fr.value,to:to.value,amount:a,on:on.value,note:note.value.trim(),by:ME,at:Date.now()});
+        const upd=async(id,d)=>{const b=BANKS[id]||bankList().find(x=>x.id===id)||{};const {id:_i,committed:_c,avail:_a,...keep}=b;await db.collection("banks").doc(id).set({...keep,name:b.name||"Bank account",balance:expectedBalanceSafe(id)+d,asOf:on.value,statedAt:Date.now()})};
+        await upd(fr.value,-a);await upd(to.value,a);toast("Transfer saved – both balances updated.");renderAcct()}catch(er){toast("Not saved.");e.target.disabled=false}}}),
+      el("button",{class:"btn",text:"Cancel",onclick:()=>box.remove()})));
+  return box}
 
 
 function dirOpeningForm(){const b=el("div",{class:"askbox cmform"});const am=el("input",{class:"fin n",type:"number",step:"any","aria-label":"Opening"});am.value=(+(BANKS["dirloan"]||{}).opening||0)||"";
@@ -3215,6 +3238,7 @@ async function projCostData(pid){try{poWatch()}catch(e){}const c=PROJS[pid]||{};
   pay.filter(p=>p.project===pid).forEach(p=>{if((p.src==="plan"||p.src==="payplan")&&!p.paid)return;let g=pgOf(p);if(g==="payroll"){payrollTagged+=p.paid?paidAmt(p):0;return}if(!G[g])g="dues";if(p.paid)G[g][1]+=paidAmt(p);else G[g][2]+=+p.amt||0});
   Object.values(LEDGER).filter(e=>e.kind==="advance"&&e.project===pid&&!e.void).forEach(e=>{G.site[1]+=+e.amount||0});
   Object.values(POS||{}).filter(x=>x.imported&&x.project===pid&&!["void","declined"].includes(x.status)).forEach(x=>{if(x.paidOn)G.sup[1]+=+x.total||0;else G.sup[2]+=+x.total||0});
+  Object.values(SUBCONS||{}).filter(x=>!x.archived&&x.project===pid).forEach(x=>{G.sub[1]+=acScPaid(x)}); // payments recorded on the subcontract card (e.g. downpayments)
   const subK=Object.values(SUBCONS||{}).filter(x=>!x.archived&&x.project===pid).reduce((t,x)=>t+(+x.contract||0),0);
   const subLeft=Math.max(0,subK-G.sub[1]-G.sub[2]);
   // labour from site attendance – a day counts if any time-in, lunch, time-out, travel or move that day was at this site;
@@ -5869,9 +5893,9 @@ function assignOptions(){return [["Office (Subic)","Office (Subic)"],...Object.e
 function renderHR(){RSEQ++;const v=$("#view");v.replaceChildren();const d=hrDate||iso(new Date());
   if(ROLE==="pmc"){v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"My evaluations"}),el("div",{class:"dsub2",text:"Site engineers and site crew – please finish before 1 November"})),...evalsOverview());return}
   if(!["gm","hr","acct"].includes(ROLE)){v.append(el("p",{class:"empty",text:"HR is only available to HR and the AAT-Gen Manager."}));return}
-  if(ROLE==="acct"){hrSub="hours";v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Payroll hours"}),el("div",{class:"dsub2",text:"Hours, overtime and night allowance per cut-off – from HR"})),ot_hoursView());return}
+  if(ROLE==="acct"){hrSub="hours";v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Payroll hours"}),el("div",{class:"dsub2",text:"Hours, overtime and night allowance per cut-off – from HR"})),ot_hoursView(),wkAcctBox());return}
   v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"HR"}),el("div",{class:"dsub2",text:"Attendance, leaves and absences – office and site staff"})));
-  const SUBS=[["today","Today"],["shift","Shift reports"+(ROLE==="hr"||ROLE==="gm"?(()=>{const n=dutyMissing(addD(iso(new Date()),-1)).length;return n?` (${n} missing)`:""})():"")],["leave","Leaves"],["log","Absence log"],["staff","Staff"],["evals","Evaluations"],["memos","📄 Memos"],["mn","Monthly notices"],["hours","⏱ Hours & OT"],["payslips","🧾 Payslips"],["rules","Rules & SIL"]];
+  const SUBS=[["today","Today"],["shift","Shift reports"+(ROLE==="hr"||ROLE==="gm"?(()=>{const n=dutyMissing(addD(iso(new Date()),-1)).length;return n?` (${n} missing)`:""})():"")],["leave","Leaves"],["log","Absence log"],["staff","Staff"],["evals","Evaluations"],["memos","📄 Memos"],["mn","Monthly notices"],["hours","⏱ Hours & OT"],["weekly","🗓 Weekly workers"],["payslips","🧾 Payslips"],["rules","Rules & SIL"]];
   const AL_=hrAlarmsAll();
   if(AL_.length){
     const GRP=[["eval","📝","Evaluations due"],["prob","⏳","Regularisations to decide"],["early","⭐","Early regularisation"],["end","📄","Contracts to renew/release"],["mn","🗓","Monthly notices"]];
@@ -5942,6 +5966,7 @@ function renderHR(){RSEQ++;const v=$("#view");v.replaceChildren();const d=hrDate
       const lv=Object.values(LEAVES).filter(l=>l.staff===id&&l.status==="approved"&&l.from.startsWith(ym)).reduce((t,l)=>t+leaveDays(l),0);
       t.append(el("tr",{},el("td",{},el("b",{text:s.name})),el("td",{text:String(lv)}),el("td",{text:String(ce("called"))}),el("td",{class:c("called")?"over":"",text:String(c("called"))}),el("td",{class:c("nocall")?"over":"",text:String(c("nocall"))+(c("nocall")>=2?" ⚠":"")}),el("td",{class:c("late")+c("under")>=3?"over":"",text:String(c("late")+c("under"))}),el("td",{text:String(ce("late")+ce("under"))}),el("td",{text:String(AA.filter(a=>a.status==="half").length)}),el("td",{text:(()=>{const x=silInfo(id);return x.eligible?`${x.left} / ${x.days}`:"–"})()})))});
     v.append(el("div",{class:"form",style:"margin-top:10px"},el("label",{class:"small lbl"},el("span",{text:"Month"}),mp)),sec("Absence log",ym,"⚠ = 2 or more no-call absences, or 3 or more lates this month – time for a talk or an incident report.",el("div",{class:"gwrap"},t)))}
+  if(hrSub==="weekly"){v.append(wkView());return}
   if(hrSub==="shift"){v.append(...dutyHRView());return}
   if(hrSub==="hours"){v.append(ot_hoursView());return}
   if(hrSub==="payslips"){v.append(psView());return}
@@ -5986,6 +6011,72 @@ function hrAlarms(){const td=iso(new Date());const A=[];
   return A}
 function compOf(sid){const H=((COMP[sid]||{}).history||[]).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));return {H,cur:H[H.length-1],start:H[0],incr:H.filter(h=>h.type==="Increase"||h.type==="Promotion").length}}
 const allowTotal=a=>(a||[]).reduce((t,x)=>t+(+x.amount||0),0);
+// ---------- WEEKLY WORKERS (paid every Saturday) – 23 Nov 2026 ----------
+// Rachel types each day from the crew leader's photo/paper: time in, time out, OT hours, project.
+// Each day is saved as a normal attendance record, so it counts in the project's labour cost like a phone time-in.
+let WKMON=null;
+const wkMon=d=>{const x=pd(d);const k=(x.getDay()+6)%7;x.setDate(x.getDate()-k);return iso(x)};
+const wkWorkers=()=>Object.entries(STAFF).filter(([,s])=>s.weekly&&s.status!=="Resigned").sort((a,b)=>(a[1].name||"").localeCompare(b[1].name||""));
+function wkRate(sid,d){const r=pcDayRate(sid,d);return r==null?null:r}
+function wkAllowDay(sid,d){const H=((COMP[sid]||{}).history||[]).filter(h=>(h.date||"")<=d).sort((a,b)=>(a.date||"").localeCompare(b.date||""));const c=H[H.length-1];return c?allowTotal(c.allow):0}
+function wkDayOf(sid,d){const r=PUNCH[d+"_"+sid];if(!r||r.test||!r.in||!r.out)return null;const h=Math.max(0,(r.out.at-r.in.at)/36e5-(r.wkNoLunch?0:1));return {r,hours:Math.round(h*100)/100,ot:+r.wkOT||0,loc:r.loc||(r.in&&r.in.loc)||""}}
+function wkPay(sid,mon){const out={days:0,ot:0,basic:0,otPay:0,allow:0,noRate:false,byLoc:{}};
+  for(let i=0;i<6;i++){const d=addD(mon,i);const D=wkDayOf(sid,d);if(!D)continue;const rt=wkRate(sid,d);out.days++;out.ot+=D.ot;
+    if(rt==null){out.noRate=true;continue}const b=rt,o=D.ot*(rt/8)*1.25,a=wkAllowDay(sid,d);out.basic+=b;out.otPay+=o;out.allow+=a;
+    const L=D.loc||"Silong office / warehouse";out.byLoc[L]=(out.byLoc[L]||0)+b+o+a}
+  out.total=out.basic+out.otPay+out.allow;return out}
+function wkView(){const box=el("div",{});const td=iso(new Date());if(!WKMON)WKMON=wkMon(td);const mon=WKMON,sat=addD(mon,5);
+  const canEd=["gm","hr"].includes(ROLE);
+  box.append(el("p",{class:"hint",style:"margin:6px 0 8px",text:"Workers paid every Saturday (Monday to Saturday) – not in the 5th / 20th payroll. Type each day from the crew leader's Viber photo or paper DTR – ideally the same day, not at the end of the week. Every day saved here counts in that project's labour cost."}));
+  box.append(el("div",{class:"opts"},el("button",{class:"btn",text:"‹ Previous week",onclick:()=>{WKMON=addD(mon,-7);renderHR()}}),el("b",{style:"align-self:center",text:`${fd(mon)} – ${fd(sat)}`}),el("button",{class:"btn",text:"Next week ›",onclick:()=>{WKMON=addD(mon,7);renderHR()}})));
+  const W=wkWorkers();
+  // who is paid weekly
+  const who=el("details",{class:"panel",style:"margin-top:8px"},el("summary",{},el("b",{text:`Weekly-paid workers (${W.length})`})));
+  W.forEach(([sid,s])=>who.append(el("div",{class:"mini",style:"display:flex;justify-content:space-between;align-items:center"},el("span",{text:`${s.name}${s.position?" · "+s.position:""}`}),canEd?el("button",{class:"btn",text:"Remove",onclick:async()=>{if(!confirm(`Take ${s.name} off the weekly sheet? Their saved days stay.`))return;try{await db.collection("staff").doc(sid).update({weekly:false});toast("Removed.")}catch(e){toast("Not saved.")}}}):"")));
+  if(canEd){const pick=el("select",{class:"fin","aria-label":"Add a worker"},el("option",{value:"",text:"+ Add a worker paid weekly (Saturday)…"}),...Object.entries(STAFF).filter(([,s])=>!s.weekly&&s.status!=="Resigned").sort((a,b)=>(a[1].name||"").localeCompare(b[1].name||"")).map(([id,s])=>el("option",{value:id,text:s.name})));
+    pick.onchange=async()=>{if(!pick.value)return;try{await db.collection("staff").doc(pick.value).update({weekly:true,paySched:"weekly – Saturday"});toast("Added to the weekly sheet.")}catch(e){toast("Not saved.")}};
+    who.append(pick,el("div",{class:"small",text:"New worker not in the list? Add them first in Staff, with their daily rate and allowances in Salary & allowances (allowances are counted per day worked)."}))}
+  if(!W.length)who.open=true;box.append(who);
+  if(!W.length)return box;
+  const LOCS=KLOCS();
+  W.forEach(([sid,s])=>{const P_=wkPay(sid,mon);const d=el("details",{class:"panel",style:"margin-top:8px"},el("summary",{},el("b",{text:s.name}),el("span",{class:"small",style:"margin-left:auto;white-space:nowrap",text:`${P_.days} day${P_.days===1?"":"s"}${P_.ot?` · OT ${P_.ot} h`:""}${P_.noRate?" · ⚠ no rate":` · ${peso(P_.total)}`}`})));
+    let b=false;d.addEventListener("toggle",()=>{if(!d.open||b)return;b=true;const rows=[];
+      for(let i=0;i<6;i++){const day=addD(mon,i);const r=PUNCH[day+"_"+sid]||{};const T=x=>x&&x.at?hm(x.at):"";
+        const ti=el("input",{class:"fin",type:"time",style:"max-width:110px","aria-label":"Time in"});ti.value=T(r.in);
+        const to=el("input",{class:"fin",type:"time",style:"max-width:110px","aria-label":"Time out"});to.value=T(r.out);
+        const ot=el("input",{class:"fin n",type:"number",step:"0.5",min:"0",style:"max-width:80px","aria-label":"OT hours",placeholder:"OT h"});ot.value=r.wkOT||"";
+        const lc=el("select",{class:"fin","aria-label":"Project"},el("option",{value:"",text:"Project…"}),...LOCS.map(x=>el("option",{value:x,text:x.replace(/^Site – /,"")})));lc.value=r.loc||(rows[i-1]&&rows[i-1].lc.value)||"";
+        const late=r.wkEnteredAt&&iso(new Date(r.wkEnteredAt))>day?el("span",{class:"small",style:"color:#8A6100",text:`entered ${fd(iso(new Date(r.wkEnteredAt)))}`}):"";
+        const kiosk=r.in&&!r.in.manual?el("span",{class:"small",style:"color:var(--done)",text:"✓ phone time-in"}):"";
+        rows.push({day,ti,to,ot,lc,r});
+        d.append(el("div",{class:"form",style:"align-items:center;border-top:1px solid var(--line,#e3e7ea);padding-top:6px;margin-top:6px"},el("b",{style:"min-width:84px",text:pd(day).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}),ti,to,ot,lc,late,kiosk))}
+      if(canEd)d.append(el("div",{class:"opts",style:"margin-top:8px"},el("button",{class:"btn main",text:"Save this week",onclick:async e=>{
+        const bad=rows.find(x=>(x.ti.value||x.to.value)&&!(x.ti.value&&x.to.value&&x.lc.value));if(bad){toast(`${fd(bad.day)}: add time in, time out and the project.`);return}
+        e.target.disabled=true;let n=0;
+        try{for(const x of rows){if(!x.ti.value)continue;const at=t=>{const [hh,mm]=t.split(":").map(Number);const z=pd(x.day);z.setHours(hh,mm,0,0);return +z};let a=at(x.ti.value),o=at(x.to.value);if(o<=a)o+=864e5;
+            const pv=PUNCH[x.day+"_"+sid]||{};const keepIn=pv.in&&!pv.in.manual;const f=t=>({at:t,manual:true,by:ME,byName:ROLE==="gm"?"AAT":"HR",note:"Weekly sheet",loc:x.lc.value});
+            const rec={...pv,date:x.day,sid,name:s.name||"",loc:x.lc.value,in:keepIn?pv.in:f(a),out:pv.out&&!pv.out.manual?pv.out:f(o),wkOT:+x.ot.value||0,weekly:true,wkEnteredAt:pv.wkEnteredAt||Date.now(),updatedAt:Date.now()};
+            await db.collection("punch").doc(x.day+"_"+sid).set(rec);n++}
+          toast(`Saved ${n} day${n===1?"":"s"}.`)}catch(er){toast("Not saved – check the connection.");e.target.disabled=false}}})));
+    });box.append(d)});
+  // Saturday pay
+  const T=W.map(([sid,s])=>[sid,s,wkPay(sid,mon)]);const tot=T.reduce((t,[,,p])=>t+p.total,0);
+  const cell=(t,st)=>el("td",{style:"padding:5px 4px;border-bottom:1px solid #e3e3e3;"+(st||""),text:t});
+  const pay=el("div",{class:"panel",style:"margin-top:12px;overflow-x:auto"},el("b",{text:`Saturday pay – ${fd(sat)}`}),
+    el("table",{style:"width:100%;border-collapse:collapse;font-size:13px;margin-top:6px"},el("tr",{},...["Worker","Days","Salary","OT","Allowances","Total"].map((h,n)=>el("th",{style:"padding:5px 4px;border-bottom:2px solid #1F6F6B;text-align:"+(n?"right":"left"),text:h}))),
+      ...T.map(([,s,p])=>el("tr",{},cell(s.name+(p.noRate?" ⚠ no daily rate":""),"text-align:left"),cell(String(p.days),"text-align:right"),cell(peso(p.basic),"text-align:right"),cell(p.ot?`${p.ot} h · ${peso(p.otPay)}`:"–","text-align:right;white-space:nowrap"),cell(peso(p.allow),"text-align:right"),cell(peso(p.total),"text-align:right;font-weight:700"))),
+      el("tr",{},cell("TOTAL","font-weight:700"),cell(String(T.reduce((t,[,,p])=>t+p.days,0)),"text-align:right"),cell(""),cell(""),cell(""),cell(peso(tot),"text-align:right;font-weight:700"))),
+    el("div",{class:"small",style:"margin-top:6px",text:"Salary = days worked × daily rate. OT = OT hours × (daily rate ÷ 8) × 1.25, until HR confirms the OT rule. Allowances = the allowances in Salary & allowances × days worked. Hours count 1 hour for lunch."}));
+  if(["gm","acct"].includes(ROLE)&&tot>0)pay.append(el("div",{class:"opts"},el("button",{class:"btn main",text:"📤 Send Saturday pay to Accounts",onclick:async e=>{
+    const byP={};T.forEach(([,,p])=>Object.entries(p.byLoc).forEach(([loc,a])=>{const pid=Object.entries(PROJS).find(([,c])=>"Site – "+c.name===loc);const k=pid?pid[0]:"company";byP[k]=(byP[k]||0)+a}));
+    e.target.disabled=true;try{let n=0;for(const [pid,a] of Object.entries(byP)){const id="wk_"+mon+"_"+pid;const ex=await db.collection("ledger").doc(id).get();if(ex.exists&&(ex.data().paidOn||ex.data().status==="paid"))continue;
+        await db.collection("ledger").doc(id).set({kind:"bill",payee:"Weekly workers – week of "+fd(mon),category:"payroll:weekly",desc:`Saturday pay ${fd(sat)} – salary, OT and allowances (${T.filter(([,,p])=>p.days).map(([,s])=>s.name).join(", ")})`,amount:Math.round(a*100)/100,ref:"",project:pid,due:sat,status:"open",createdAt:Date.now(),updatedAt:Date.now(),by:await myId()});n++}
+      toast(n?"Sent – it's in Accounts payables, due Saturday.":"Already paid – nothing sent.")}catch(er){toast("Not saved – check the connection.");e.target.disabled=false}}})));
+  box.append(pay);return box}
+let WKOPEN=false;
+function wkAcctBox(){const d=el("details",{class:"panel",style:"margin-top:14px"},el("summary",{},el("b",{text:"🗓 Weekly workers – Saturday pay"})));if(WKOPEN)d.open=true;
+  let b=false;const fill=()=>{if(b)return;b=true;try{d.append(wkView())}catch(e){d.append(el("p",{class:"mini",text:"Couldn't load the weekly sheet."}))}};
+  d.addEventListener("toggle",()=>{WKOPEN=d.open;if(d.open)fill()});if(WKOPEN)fill();return d}
 function compForm(sid,onDone){const box=el("div",{class:"askbox"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);const cur=compOf(sid).cur||{};
   const dt=el("input",{class:"fin",type:"date","aria-label":"Effective date"});dt.value=iso(new Date());
   const ty=el("select",{class:"fin","aria-label":"Type"},...["Starting salary","Increase","Promotion","Adjustment","Decrease"].map(x=>el("option",{value:x,text:x})));ty.value=compOf(sid).H.length?"Increase":"Starting salary";
@@ -7748,6 +7839,88 @@ function acScRecordPay(id,c){const f=el("details",{class:"panel",style:"margin-t
   f.append(el("div",{class:"form"},el("label",{class:"small fdate"},"Paid on ",on),lab_(am),nt,rf,el("button",{class:"btn main",text:"Save payment",onclick:async e=>{if(!(+am.value)||!on.value){toast("Add the date and amount.");return}e.target.disabled=true;
     const x={on:on.value,amt:+am.value,note:nt.value.trim(),ref:rf.value.trim(),at:Date.now(),by:await myId()};try{const d={...c,payments:[...(c.payments||[]),x],updatedAt:Date.now()};await db.collection("subcons").doc(id).set(d);SUBCONS[id]=d;toast("Payment saved.");renderAcct()}catch(er){toast("Not saved.");e.target.disabled=false}}})));return f}
 
+// ---------- SUBCONTRACTOR REGISTER (23 Nov 2026) ----------
+// One entry per subcontractor; each quote/contract (a "subcons" card) sits under it.
+// A progress billing is entered once under its quote and becomes a payable (ledger bill linked by sc).
+// Paying it in Payables, or here, updates the quote balance – it is the same record.
+function srPaidAmt(p){return +(p.paid&&(p.paid.paidAmt!=null?p.paid.paidAmt:p.paid.actual))||+p.amt||0}
+function srQuote(id,c,pay){const mine=pay.filter(p=>{const m=pgSubOf(p);return m&&m[0]===id});
+  const billPaid=mine.filter(p=>p.paid).reduce((t,p)=>t+srPaidAmt(p),0),paid=billPaid+acScPaid(c);
+  const open=mine.filter(p=>!p.paid);const openAmt=open.reduce((t,p)=>t+(+p.amt||0),0);const k=+c.contract||0;
+  return {id,c,mine,open,openAmt,paid,k,bal:k?k-paid:0}}
+function srAll(pay){const Q=Object.entries(SUBCONS||{}).filter(([,c])=>!c.archived&&c.name).map(([id,c])=>srQuote(id,c,pay));
+  const G={};Q.forEach(q=>{const key=pgNorm(q.c.name);(G[key]=G[key]||{name:q.c.name,Q:[]}).Q.push(q)});
+  return {Q,G,openN:Q.reduce((t,q)=>t+q.open.length,0),bal:Q.reduce((t,q)=>t+Math.max(0,q.bal),0)}}
+function subRegView(pay){const box=el("div",{});const can=OWNER||["gm","acct"].includes(ROLE);const X=srAll(pay);
+  const sum=(L,f)=>L.reduce((t,q)=>t+f(q),0);
+  const cell=(t,st)=>el("td",{style:"padding:5px 4px;border-bottom:1px solid #e3e3e3;"+(st||""),text:t});
+  const tbl=(head,rows)=>el("div",{class:"panel",style:"overflow-x:auto;margin-bottom:8px"},el("table",{style:"width:100%;border-collapse:collapse;font-size:13px"},
+    el("tr",{},...head.map((h,n)=>el("th",{style:"padding:5px 4px;border-bottom:2px solid #1F6F6B;text-align:"+(n?"right":"left"),text:h}))),...rows));
+  const row=(t,L,bold)=>el("tr",{},cell(t,"text-align:left"+(bold?";font-weight:700":"")),cell(peso(sum(L,q=>q.k)),"text-align:right;white-space:nowrap"),cell(peso(sum(L,q=>q.paid)),"text-align:right;white-space:nowrap"),cell(peso(sum(L,q=>q.openAmt)),"text-align:right;white-space:nowrap"),cell(peso(sum(L,q=>q.bal)),"text-align:right;white-space:nowrap;font-weight:700"));
+  box.append(el("p",{class:"hint",style:"margin:0 0 8px",text:"One entry per subcontractor, with every quote under it. Enter a progress billing once, under its quote – it goes straight into Payables. Paying it there or here updates the balance."}));
+  if(!X.Q.length)box.append(el("div",{class:"mini empty",text:"No subcontractors yet – add the first one below."}));
+  else{
+    box.append(el("div",{class:"small",style:"font-weight:700;margin:6px 0 4px",text:"By subcontractor – all projects"}));
+    const GS=Object.values(X.G).sort((a,b)=>a.name.localeCompare(b.name));
+    box.append(tbl(["Subcontractor","Contract","Paid","Billed – not paid","Balance"],[...GS.map(g=>row(g.name,g.Q)),row("TOTAL",X.Q,true)]));
+    const P_={};X.Q.forEach(q=>{const k=q.c.project||"company";(P_[k]=P_[k]||[]).push(q)});
+    box.append(el("div",{class:"small",style:"font-weight:700;margin:10px 0 4px",text:"By project"}));
+    box.append(tbl(["Project","Contract","Paid","Billed – not paid","Balance"],[...Object.entries(P_).sort((a,b)=>projName(a[0]).localeCompare(projName(b[0]))).map(([k,L])=>row(k==="company"?"Company (no project)":projName(k),L)),row("TOTAL",X.Q,true)]));
+    GS.forEach(g=>{const d=el("details",{class:"panel",style:"margin-top:8px"},el("summary",{},el("b",{text:`${g.name} · ${g.Q.length} quote${g.Q.length>1?"s":""}`}),
+        el("span",{class:"small",style:"margin-left:auto;white-space:nowrap",text:`balance ${peso(sum(g.Q,q=>q.bal))}`}),sum(g.Q,q=>q.open.length)?el("span",{class:"tag ok",style:"margin-left:6px",text:String(sum(g.Q,q=>q.open.length))}):""));
+      let b=false;d.addEventListener("toggle",()=>{if(!d.open||b)return;b=true;
+        g.Q.sort((a,b)=>projName(a.c.project).localeCompare(projName(b.c.project))||(a.c.scope||"").localeCompare(b.c.scope||"")).forEach(q=>d.append(srQuoteCard(q,can)));
+        if(can)d.append(el("div",{class:"opts",style:"margin-top:8px"},el("button",{class:"btn",text:`+ Add another quote for ${g.name}`,onclick:ev=>{const h=ev.target.parentNode;if(!h.querySelector(".srform"))h.append(srQuoteForm(null,{name:g.name}))}})))});
+      box.append(d)})}
+  if(can)box.append(el("div",{class:"opts",style:"margin-top:10px"},el("button",{class:"btn main",text:"+ New subcontractor",onclick:ev=>{const h=ev.target.parentNode;if(!h.querySelector(".srform"))h.append(srQuoteForm(null,{}))}})));
+  return box}
+function srQuoteCard(q,can){const c=q.c;const k=q.k,dep=+c.deposit||0;
+  const card=el("div",{class:"panel",style:"margin-top:8px;border-left:4px solid #1F6F6B"});
+  card.append(el("div",{},el("b",{text:c.scope||"Scope not entered"}),el("div",{class:"small",text:`${c.project&&c.project!=="company"?projName(c.project):"Company"}${c.quoteNo?" · Quote "+c.quoteNo:""}`})));
+  card.append(el("div",{class:"mini",style:"margin-top:4px",text:`Contract ${k?peso(k):"not entered"}${dep?` · deposit ${peso(dep)}${k?" ("+Math.round(dep/k*100)+"%)":""}`:""} · paid ${peso(q.paid)}${k?" ("+Math.round(q.paid/k*100)+"%)":""}${k?` · balance ${peso(q.bal)}`:""}`}));
+  if(q.openAmt)card.append(el("div",{class:"small",style:"font-weight:700;color:#8A6100",text:`Billed, not paid yet: ${peso(q.openAmt)}`}));
+  if(c.terms)card.append(el("div",{class:"small",text:"Terms: "+c.terms}));if(c.note)card.append(el("div",{class:"small",text:c.note}));
+  if((c.files||[]).length)card.append(attachButtons(c.files));
+  const P_=[...(c.payments||[]).map(x=>({on:x.on,amt:+x.amt||0,t:x.note||"Payment",ref:x.ref||""})),...q.mine.filter(p=>p.paid).map(p=>({on:p.paid.on||"",amt:srPaidAmt(p),t:p.what||p.ref||"Billing",ref:p.paid.ref||""}))].sort((a,b)=>(a.on||"").localeCompare(b.on||""));
+  if(P_.length)card.append(el("div",{class:"panel",style:"margin-top:6px"},el("div",{class:"small",style:"font-weight:700",text:`Payments (${P_.length}) · ${peso(P_.reduce((t,x)=>t+x.amt,0))}`}),...P_.map(x=>el("div",{class:"small",text:`${x.on?fd(x.on):"—"} · ${peso(x.amt)} · ${x.t}${x.ref?" · "+x.ref:""}`}))));
+  if(q.open.length)card.append(el("div",{class:"small",style:"font-weight:700;margin-top:6px",text:"Billings to pay"}),el("div",{class:"panel"},...q.open.sort((a,b)=>(a.due||"").localeCompare(b.due||"")).map(p=>payRow(p,{fund:true}))));
+  if(can){const host=el("div",{});
+    card.append(el("div",{class:"opts",style:"margin-top:6px"},
+      el("button",{class:"btn main",text:"+ Progress billing",onclick:()=>{host.replaceChildren(srBillForm(q.id,c,q))}}),
+      el("button",{class:"btn",text:"✏️ Edit quote",onclick:()=>{host.replaceChildren(srQuoteForm(q.id,c))}})),host,acScRecordPay(q.id,c))}
+  return card}
+function srBillForm(id,c,q){const f=el("div",{class:"askbox srform"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);
+  const n=q.mine.length+1;const ds=el("input",{class:"fin","aria-label":"What for"});ds.value=`Progress billing ${n} – ${c.scope||""}`.replace(/ – $/,"");
+  const am=numIn("Amount ₱");const rf=el("input",{class:"fin",placeholder:"Billing / invoice no. (optional)","aria-label":"Bill number"});
+  const du=el("input",{class:"fin",type:"date","aria-label":"Due date"});du.value=iso(new Date());
+  const left=q.k?q.k-q.paid-q.openAmt:0;
+  f.append(el("div",{class:"mini"},el("b",{text:`Progress billing – ${c.name}`}),el("div",{class:"small",text:`${c.scope||""}${q.k?` · ${peso(left)} of the contract not yet billed or paid`:""}`})),
+    el("div",{class:"form"},L("What for",ds),L("Amount ₱",am),L("Bill no.",rf),L("Due date",du)),
+    el("div",{class:"opts"},el("button",{class:"btn main",text:"Save – add to Payables",onclick:async e=>{const a=+am.value||0;if(!a||!du.value){toast("Add the amount and due date.");return}
+      if(q.k&&a>left+1&&!confirm(`This is more than what's left on the contract (${peso(left)}). Save anyway?`))return;e.target.disabled=true;
+      try{await db.collection("ledger").doc("b"+Date.now()).set({kind:"bill",payee:c.name,category:"Subcontractor",desc:ds.value.trim(),amount:a,ref:rf.value.trim(),project:c.project||"company",due:du.value,status:"open",sc:id,createdAt:Date.now(),updatedAt:Date.now(),by:await myId()});
+        toast("Saved – it's in Payables under this subcontractor.");renderAcct()}catch(er){toast("Not saved – check the connection.");e.target.disabled=false}}}),
+      el("button",{class:"btn",text:"Cancel",onclick:()=>f.remove()})));
+  return f}
+function srQuoteForm(id,c){c=c||{};const f=el("div",{class:"askbox srform"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);
+  const I=(v,ph)=>{const i=el("input",{class:"fin",placeholder:ph,"aria-label":ph});i.value=v||"";return i};
+  const nm=I(c.name,"Subcontractor name (e.g. JDM)"),sc=I(c.scope,"Scope (e.g. floor tiling)"),qn=I(c.quoteNo,"Quote no."),tm=I(c.terms,"Payment terms (e.g. 30% DP, 70% progress)"),nt=I(c.note,"Note");
+  const prj=projSelect(c.project||P);const k=numIn("Contract ₱");k.value=c.contract||"";const dp=numIn("Deposit ₱");dp.value=c.deposit||"";
+  const files=[...(c.files||[])];const st=el("span",{class:"small",text:files.length?`${files.length} file${files.length>1?"s":""} attached`:""});
+  const fin=el("input",{type:"file",accept:"image/*,application/pdf",class:"phinput","aria-label":"Quote photo or PDF"});
+  fin.onchange=async()=>{for(const x of [...fin.files]){try{st.textContent="Saving…";files.push(await saveAttachment(await fileToAttach(x)));st.textContent=`✓ ${files.length} file${files.length>1?"s":""} attached`;st.style.color="var(--done)"}catch(er){st.textContent="✗ "+er.message;st.style.color="var(--late)"}}fin.value=""};
+  f.append(el("div",{class:"mini"},el("b",{text:id?"Edit quote":c.name?`New quote for ${c.name}`:"New subcontractor"})),
+    el("div",{class:"form"},L("Subcontractor",nm),L("Scope",sc),L("Project",prj),L("Full contract price ₱",k),L("Deposit ₱",dp),L("Quote no.",qn),L("Payment terms",tm),L("Note",nt),
+      el("label",{class:"btn phbtn"},"📎 Quote photo / PDF",fin),st),
+    el("div",{class:"small",text:id?"Payments already made stay as they are. To add one, use “Record a payment already made”.":"After saving, record the deposit with “Record a payment already made” if it's already paid."}),
+    el("div",{class:"opts"},el("button",{class:"btn main",text:"Save quote",onclick:async e=>{if(!nm.value.trim()){nm.focus();return}if(!sc.value.trim()){sc.focus();toast("Add the scope.");return}e.target.disabled=true;
+      const nid=id||("sc"+Date.now());const d={...c,name:nm.value.trim(),scope:sc.value.trim(),project:prj.value,contract:+k.value||0,deposit:+dp.value||0,quoteNo:qn.value.trim(),terms:tm.value.trim(),note:nt.value.trim(),files,payments:c.payments||[],updatedAt:Date.now(),by:ME};
+      if(!id){d.createdAt=Date.now();d.archived=false}
+      try{await db.collection("subcons").doc(nid).set(d);SUBCONS[nid]=d;toast("Saved.");renderAcct()}catch(er){toast("Not saved.");e.target.disabled=false}}}),
+      id?el("button",{class:"btn",text:"Archive",onclick:async()=>{if(!confirm(`Archive this quote (${c.name} – ${c.scope||""})? Its payables stay; the quote is hidden.`))return;try{await db.collection("subcons").doc(id).set({...c,archived:true,updatedAt:Date.now()});toast("Archived.");renderAcct()}catch(er){toast("Not saved.")}}}):"",
+      el("button",{class:"btn",text:"Cancel",onclick:()=>f.remove()})));
+  return f}
+
 // ---------- PAYSLIPS (Accounts + HR prepare, Accounts releases, staff see their own) ----------
 let PSLIPS={},psPer=null,psOpen=null;
 const PS_EDIT_END="2026-11-06"; // trial: HR may type attendance by hand until the end of this day
@@ -8160,6 +8333,22 @@ async function createProject(I){
   await db.doc("p/"+id+"/plan/main").set({acts:I.acts,dels:I.dels,sched:I.sched||[],payplan:I.payplan||{},m13:I.m13||"",updatedAt:Date.now()});
   await db.doc("p/"+id+"/plan/money").set({quote:I.quote,billing:I.billing,contract:I.prj.contract||0,updatedAt:Date.now()});
 }
+// ---------- built-in project: Barn by Conti's Clark (added 23 Nov 2026) ----------
+// Created once, automatically, the first time AAT opens the Hub. Arman enters nothing.
+const CLARK="barn-clark";let CLARK_SEED=false;
+async function seedClark(){if(CLARK_SEED||!db||ROLE!=="gm"||PROJS[CLARK])return;CLARK_SEED=true;
+  try{const now=Date.now();
+    await db.collection("projects").doc(CLARK).set({name:"Barn by Conti's Clark",client:"Argajon Specialty Foods Inc.",clientTin:"006-803-353-00031",clientAddress:"Barn House, 2085 R.C. Santos St., Clark Freeport Zone, Clark, Pampanga",location:"Clark Freeport Zone, Pampanga",type:"landscaping",scope:"Landscape refresh and furniture set-up",shifts:"day",contract:350000,vatIncl:true,start:"2026-11-09",turnover:"2026-11-11",end:"2026-11-12",deliv:0,createdAt:now,updatedAt:now});
+    await db.doc("p/"+CLARK+"/plan/main").set({acts:[],dels:[],sched:[],payplan:{},m13:"",updatedAt:now});
+    await db.doc("p/"+CLARK+"/plan/money").set({quote:350000,billing:null,contract:350000,updatedAt:now});
+    const r=await db.collection("recv").doc(CLARK).get();
+    if(!r.exists)await db.collection("recv").doc(CLARK).set({title:"Barn by Conti's Clark – landscape refresh & furniture set-up",client:"Argajon Specialty Foods Inc.",project:CLARK,quoteNo:"",invNo:"000021 / 000022",contract:350000,opening:0,
+      openingNote:"Contract ₱350,000 VAT inclusive. Each billing shows what the client pays after 2% EWT (₱6,250 in total). Ask the client for BIR Form 2307.",
+      lines:[{id:"l1",label:"70% downpayment – Invoice 000021 (₱245,000 less 2% EWT ₱4,375)",pct:0,amt:240625,due:"2026-11-09",invNo:"000021",invDate:"2026-11-09"},
+             {id:"l2",label:"30% balance – Invoice 000022 (₱105,000 less 2% EWT ₱1,875)",pct:0,amt:103125,due:"2026-11-11",invNo:"000022",invDate:"2026-11-11"}],
+      createdAt:now,updatedAt:now});
+    toast("Barn by Conti's Clark added to the project list.");
+  }catch(e){CLARK_SEED=false}}
 // ---------- full export for moving to the new hosted Hub ----------
 const MIG_TOP=["access","aplan","apv","attach","attachc","attend","banks","billing","cashmoves","checkins","clientlog","comp","coord","ddeliv","deliv","dinstr","disc","docs","drafts","dreports","drevs","duty","dvisits","evals","extras","fab","headreports","hr","invoices","leaves","ledger","memos","messages","meta","mnotices","notices","obligations","obpay","orders","otapprove","paycfg","people","photos","plan","pnotes","projects","punch","quotes","recv","reports","roster","rosters","settings","staff","suppliers","transfers","visits"];
 const MIG_PROJ=["checkins","clientlog","coord","ddeliv","deliv","dinstr","docs","dreports","drevs","dvisits","extras","fab","headreports","meta","orders","photos","plan","reports","roster","visits"];
@@ -8666,7 +8855,7 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   db.collection("apv").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});const hb=hotCount();APV=n;pingHot(hb);acctBadge();gmBadge();if(tab==="buy"&&BUYOPEN==="b_apl"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderBuy()}catch(e){}if(["acct","gm","home"].includes(tab))refresh("apv")},()=>{});
   db.doc("settings/main").onSnapshot(d=>{SETTINGS=Object.assign({unplannedLimit:5000,creditLines:[{name:"Crown Ace",days:30},{name:"Nordsmaire Hardware",days:30}]},(d&&d.exists&&d.data())||{})},()=>{});
   applyRole();
-  db.collection("projects").onSnapshot(s=>{const n={[BARN]:BARN_CFG};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object"&&x.name&&d.id!==BARN)n[d.id]=x});PROJS=n;fillSelectors();watchAllOrders();if(!PROJS[P])setProject(BARN);else if(P!==BARN){applyProject()}if(tab==="gm")renderGM();if(tab==="design"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderDesignStudio()},()=>{});
+  db.collection("projects").onSnapshot(s=>{const n={[BARN]:BARN_CFG};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object"&&x.name&&d.id!==BARN)n[d.id]=x});PROJS=n;fillSelectors();watchAllOrders();setTimeout(()=>{try{seedClark()}catch(e){}},2500);if(!PROJS[P])setProject(BARN);else if(P!==BARN){applyProject()}if(tab==="gm")renderGM();if(tab==="design"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderDesignStudio()},()=>{});
   db.collection("suppliers").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});SUPPLIERS=n},()=>{});
   db.collection("messages").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});MSGS=n;msgBadge();if(tab==="msg"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderMsg();if(tab==="buy")refresh("orders");if(tab==="gm")refresh("gm")},()=>{});
   subscribe();
