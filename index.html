@@ -580,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23c"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23d"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -1690,6 +1690,8 @@ function payRow(p,opts={}){const r=payRow0(p,opts);
   try{const e=p.src==="ledger"&&LEDGER[p.lid];if(e&&e.kind==="draw"&&!p.paid){const B=liqBlockers(e.pool,e.by,e.project).filter(([id])=>id!==p.lid);
     if(B.length){r.append(el("div",{class:"small",style:"font-weight:700;margin-top:4px",text:`⚠ No liquidation, no release – their ${B[0][1].poolName} of ${fd(B[0][1].paidOn)} (${peso(B[0][1].amount)}) isn't liquidated yet.${ROLE==="gm"?" You can override.":" Only the AAT-Gen Manager can override."}`}));
       if(ROLE!=="gm")r.querySelectorAll(".btn.main").forEach(b=>{b.disabled=true})}}}catch(x){}
+  // 23 Nov 2026: a BizLink button on every unpaid payable, so AAT gets the Telegram alert whichever screen Accounts pays from
+  try{if(ROLE==="acct"&&!p.paid&&!p.credit&&p.src!=="payplan"&&!xferFor(p.key)){const bb=el("button",{class:"btn",text:"🏦 Entered in BizLink – needs GM authorization",onclick:()=>bpiForm(bb,{...p,ref_:{src:"pay",key:p.key}})});r.append(el("div",{class:"opts"},bb))}}catch(x){}
   return r}
 function payRow0(p,opts={}){
   const r=el("div",{class:"drow"},el("div",{class:"dtxt tap",role:"button",tabindex:"0",title:"Tap for details",onclick:ev=>{if(ev.target.closest("button,input,select,textarea"))return;showPayDetail(p)}},el("b",{text:`${fd(p.due)} · ${p.payee} – ${peso(p.amt)}`}),el("span",{class:"dmore",text:" ⓘ details"}),opts.why?el("span",{class:"tag due",style:"margin-left:6px",text:opts.why}):"",p.unplanned?el("span",{class:"tag",style:"margin-left:6px",text:"Unplanned"}):"",
@@ -1716,7 +1718,7 @@ function payRow0(p,opts={}){
     ms_,
     ref,el("button",{class:"btn main",onclick:async e=>{const ms=ms_;
       if(!cashCheckOK(ms.value,ref.value,ms)){if(!ms.value)ms.focus();return}e.target.disabled=true;try{if(canAdj&&adjNote.value.trim()&&adjNote.value.trim()!==(p.adjNote||""))await setActual(p,+act.value,adjNote.value.trim());await markPaid(p,(ref.value.trim()?`${ms_.value}: ${ref.value.trim()}`:ms_.value),+act.value,ms_.bank);toast("Marked paid.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}},mp_));
-  if(opts.fund)f.append(el("button",{class:"btn",text:"Ask GM for funds",onclick:async()=>{try{await db.collection("messages").doc("m"+Date.now()).set({project:p.project,projName:projName(p.project),type:"funding",to:"gm",from:"acct",fromId:await myId(),subject:`Funds needed: ${peso(p.amt)} to ${p.payee} by ${fd(p.due)}`,body:`${p.type||""} · ${p.ref||""} · ${p.what||""}`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()});toast("Funding request sent to the AAT-Gen Manager.")}catch(e){toast("Not sent.")}}}));
+  if(opts.fund)f.append(el("button",{class:"btn",text:"Ask GM for funds",onclick:async()=>{try{await db.collection("messages").doc("m"+Date.now()).set({project:p.project,projName:projName(p.project),type:"funding",to:"gm",from:"acct",fromId:await myId(),subject:`Funds needed: ${peso(p.amt)} to ${p.payee} by ${fd(p.due)}`,body:`${p.type||""} · ${p.ref||""} · ${p.what||""}`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()});tgGM(`💰 Funds needed: ${peso(p.amt)} to ${p.payee} by ${fd(p.due)}`,`${projName(p.project)} · ${p.type||""}${p.what?" · "+p.what:""}\nAsked by Accounts`);toast("Funding request sent to the AAT-Gen Manager.")}catch(e){toast("Not sent.")}}}));
   r.append(f);return r;
 }
 async function renderAcct(){
