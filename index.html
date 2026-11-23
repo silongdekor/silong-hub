@@ -580,7 +580,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23b"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-23c"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -5895,7 +5895,7 @@ function renderHR(){RSEQ++;const v=$("#view");v.replaceChildren();const d=hrDate
   if(!["gm","hr","acct"].includes(ROLE)){v.append(el("p",{class:"empty",text:"HR is only available to HR and the AAT-Gen Manager."}));return}
   if(ROLE==="acct"){hrSub="hours";v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Payroll hours"}),el("div",{class:"dsub2",text:"Hours, overtime and night allowance per cut-off – from HR"})),ot_hoursView(),wkAcctBox());return}
   v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"HR"}),el("div",{class:"dsub2",text:"Attendance, leaves and absences – office and site staff"})));
-  const SUBS=[["today","Today"],["shift","Shift reports"+(ROLE==="hr"||ROLE==="gm"?(()=>{const n=dutyMissing(addD(iso(new Date()),-1)).length;return n?` (${n} missing)`:""})():"")],["leave","Leaves"],["log","Absence log"],["staff","Staff"],["evals","Evaluations"],["memos","📄 Memos"],["mn","Monthly notices"],["hours","⏱ Hours & OT"],["weekly","🗓 Weekly workers"],["payslips","🧾 Payslips"],["rules","Rules & SIL"]];
+  const SUBS=[["today","Today"],["shift","Shift reports"+(ROLE==="hr"||ROLE==="gm"?(()=>{const n=dutyMissing(addD(iso(new Date()),-1)).length;return n?` (${n} missing)`:""})():"")],["leave","Leaves"],["log","Absence log"],["staff","Staff"],["evals","Evaluations"],["memos","📄 Memos"],["mn","Monthly notices"],["hours","⏱ Hours & OT"],["weekly","🗓 Weekly workers"],["m13","🎁 13th month"],["payslips","🧾 Payslips"],["rules","Rules & SIL"]];
   const AL_=hrAlarmsAll();
   if(AL_.length){
     const GRP=[["eval","📝","Evaluations due"],["prob","⏳","Regularisations to decide"],["early","⭐","Early regularisation"],["end","📄","Contracts to renew/release"],["mn","🗓","Monthly notices"]];
@@ -5967,6 +5967,7 @@ function renderHR(){RSEQ++;const v=$("#view");v.replaceChildren();const d=hrDate
       t.append(el("tr",{},el("td",{},el("b",{text:s.name})),el("td",{text:String(lv)}),el("td",{text:String(ce("called"))}),el("td",{class:c("called")?"over":"",text:String(c("called"))}),el("td",{class:c("nocall")?"over":"",text:String(c("nocall"))+(c("nocall")>=2?" ⚠":"")}),el("td",{class:c("late")+c("under")>=3?"over":"",text:String(c("late")+c("under"))}),el("td",{text:String(ce("late")+ce("under"))}),el("td",{text:String(AA.filter(a=>a.status==="half").length)}),el("td",{text:(()=>{const x=silInfo(id);return x.eligible?`${x.left} / ${x.days}`:"–"})()})))});
     v.append(el("div",{class:"form",style:"margin-top:10px"},el("label",{class:"small lbl"},el("span",{text:"Month"}),mp)),sec("Absence log",ym,"⚠ = 2 or more no-call absences, or 3 or more lates this month – time for a talk or an incident report.",el("div",{class:"gwrap"},t)))}
   if(hrSub==="weekly"){v.append(wkView());return}
+  if(hrSub==="m13"){v.append(m13View());return}
   if(hrSub==="shift"){v.append(...dutyHRView());return}
   if(hrSub==="hours"){v.append(ot_hoursView());return}
   if(hrSub==="payslips"){v.append(psView());return}
@@ -6077,6 +6078,58 @@ let WKOPEN=false;
 function wkAcctBox(){const d=el("details",{class:"panel",style:"margin-top:14px"},el("summary",{},el("b",{text:"🗓 Weekly workers – Saturday pay"})));if(WKOPEN)d.open=true;
   let b=false;const fill=()=>{if(b)return;b=true;try{d.append(wkView())}catch(e){d.append(el("p",{class:"mini",text:"Couldn't load the weekly sheet."}))}};
   d.addEventListener("toggle",()=>{WKOPEN=d.open;if(d.open)fill()});if(WKOPEN)fill();return d}
+// ---------- 13TH MONTH PAY (23 Nov 2026) ----------
+// 13th month = basic pay earned in the year ÷ 12, due by 24 December. The Hub started mid-year, so HR enters once per person
+// the basic pay already earned from 1 January (or the start date) up to a cut-off date; the Hub estimates the rest from Salary & allowances.
+const M13Y="2026";
+function m13Cfg(){return (PAYCFG||{})["m13_"+M13Y]||{}}
+function m13Rate(sid,d){const H=compOf(sid).H;if(!H.length)return null;let c=H[0];H.forEach(h=>{if((h.date||"")<=d)c=h});return c}
+function m13Basic(sid,a,b){let t=0;if(!a||!b||a>b)return 0;const wk=!!(STAFF[sid]||{}).weekly;
+  for(let d=a;d<=b;d=addD(d,1)){const c=m13Rate(sid,d);if(!c||!(+c.basic))continue;if(c.rate==="daily"){const g=pd(d).getDay();if(g===0||(g===6&&!wk))continue;t+=+c.basic}else t+=+c.basic*12/365}return t}
+function m13Row(sid){const s=STAFF[sid]||{};const C=m13Cfg();const upto=C.upto||(M13Y+"-10-31");const y0=M13Y+"-01-01",y1=M13Y+"-12-31";
+  const from=s.start&&s.start>y0?s.start:y0;const td=iso(new Date());const v=C.p?C.p[sid]:null;const entered=v!=null&&v!=="";
+  const before=entered?+v:m13Basic(sid,from,upto);const a1=addD(upto,1)>from?addD(upto,1):from;
+  const toDate=before+m13Basic(sid,a1,td<y1?td:y1),full=before+m13Basic(sid,a1,y1);
+  return {sid,name:s.name,start:s.start||"",before,entered,after:full-before,toDate,full,m13:full/12,acc:toDate/12,upto}}
+function m13Staff(){return Object.entries(STAFF).filter(([sid,s])=>s&&s.name&&!(s.status==="Resigned"||s.status==="Terminated"||s.left||s.inactive)&&compOf(sid).H.length).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([sid])=>sid)}
+function m13Totals(){const R=m13Staff().map(m13Row);return {total:Math.round(R.reduce((t,r)=>t+r.m13,0)),accrued:Math.round(R.reduce((t,r)=>t+r.acc,0)),n:R.length,est:R.filter(r=>!r.entered).length,due:M13Y+"-12-24",at:Date.now()}}
+function m13View(){const box=el("div",{});const C=m13Cfg();const can=["gm","hr","acct"].includes(ROLE);
+  box.append(el("p",{class:"hint",style:"margin:6px 0 8px",text:`13th month pay = total basic pay earned in ${M13Y} ÷ 12. It must be paid by 24 December. Because the Hub started mid-year, enter once for each person the basic pay already earned from 1 January (or their start date) up to the date below – take it from the old payroll records. The Hub adds the rest from Salary & allowances. A blank box is estimated from the salary record.`}));
+  const up=el("input",{class:"fin",type:"date","aria-label":"Earned up to"});up.value=C.upto||(M13Y+"-10-31");
+  box.append(el("div",{class:"form"},el("label",{class:"small lbl"},el("span",{text:"Old payroll records cover 1 Jan up to"}),up)));
+  const R=m13Staff().map(m13Row);const IN={};
+  const cell=(x,st)=>el("td",{style:"padding:5px 4px;border-bottom:1px solid #e3e3e3;"+(st||"")},x);
+  const t=el("table",{style:"width:100%;border-collapse:collapse;font-size:13px"},el("tr",{},...["Staff","Basic earned before (₱)","After (Hub estimate)","Full-year basic","13th month"].map((h,n)=>el("th",{style:"padding:5px 4px;border-bottom:2px solid #1F6F6B;text-align:"+(n?"right":"left"),text:h}))));
+  R.forEach(r=>{const i=el("input",{class:"fin n",type:"number",step:"any",style:"max-width:130px;text-align:right","aria-label":"Basic earned before – "+r.name,placeholder:Math.round(r.before).toLocaleString("en-PH")});if(r.entered)i.value=r.before;IN[r.sid]=i;
+    t.append(el("tr",{},cell(el("span",{},el("b",{text:r.name}),el("div",{class:"small",text:(r.start?"started "+fd(r.start):"")+(r.entered?"":" · estimated")})),"text-align:left"),cell(i,"text-align:right"),cell(document.createTextNode(peso(r.after)),"text-align:right"),cell(document.createTextNode(peso(r.full)),"text-align:right"),cell(el("b",{text:peso(r.m13)}),"text-align:right")))});
+  const T=R.reduce((s_,r)=>s_+r.m13,0),A=R.reduce((s_,r)=>s_+r.acc,0);
+  t.append(el("tr",{},cell(el("b",{text:"TOTAL"})),cell(document.createTextNode("")),cell(document.createTextNode("")),cell(document.createTextNode("")),cell(el("b",{text:peso(T)}),"text-align:right")));
+  box.append(el("div",{class:"panel",style:"overflow-x:auto"},R.length?t:el("p",{class:"mini empty",text:"No active staff with a salary yet – add salaries in Staff → Salary & allowances."})));
+  const wks=Math.max(1,Math.ceil(diff(iso(new Date()),M13Y+"-12-24")/7));
+  box.append(el("div",{class:"mini",style:"margin-top:6px",text:`Total 13th month pay: ${peso(T)} · earned so far ${peso(A)} · due 24 Dec – set aside about ${peso(T/wks)} a week.`}));
+  if(R.some(r=>!r.entered))box.append(el("div",{class:"small",style:"color:#8A6100",text:`${R.filter(r=>!r.entered).length} person(s) still estimated – enter their basic pay from the old payroll records for an exact figure.`}));
+  if(can)box.append(el("div",{class:"opts"},el("button",{class:"btn main",text:"Save",onclick:async e=>{e.target.disabled=true;const p={};Object.entries(IN).forEach(([sid,i])=>{if(i.value!=="")p[sid]=+i.value});
+    try{await db.collection("paycfg").doc("m13_"+M13Y).set({upto:up.value,p,updatedAt:Date.now(),by:ME});PAYCFG={...PAYCFG,["m13_"+M13Y]:{upto:up.value,p}};toast("Saved.");try{apSnap(true)}catch(_){}renderHR()}catch(er){toast("Not saved – check the connection.");e.target.disabled=false}}})));
+  return box}
+// ---------- BRIEFING SNAPSHOT (23 Nov 2026) ----------
+// The morning briefing (Google script) can't run the Hub's payables logic, so the Hub saves a summary of open payables,
+// the payroll estimate and the 13th month total. Refreshed every 2 hours while AAT or Accounts has the Hub open.
+let APSNAP_BUSY=false;
+function payrollEst(){let semi=0,weekly=0,nS=0,nW=0;
+  Object.entries(STAFF).forEach(([sid,s])=>{if(!s||!s.name||s.status==="Resigned"||s.status==="Terminated"||s.left||s.inactive)return;const c=compOf(sid).cur;if(!c||!(+c.basic))return;const al=allowTotal(c.allow);
+    if(s.weekly){weekly+=((c.rate==="daily"?+c.basic:+c.basic*12/261)+al)*6;nW++}else{semi+=(c.rate==="daily"?+c.basic*261/24:+c.basic/2)+al/2;nS++}});
+  return {semi:Math.round(semi),weekly:Math.round(weekly),nS,nW,at:Date.now()}}
+async function apSnap(force){if(APSNAP_BUSY||!db||!["gm","acct"].includes(ROLE))return;const prev=(ACFG||{})._apsnap||{};if(!force&&Date.now()-(+prev.updatedAt||0)<2*36e5)return;APSNAP_BUSY=true;
+  try{const keep=acctScope;let pay=[];acctScope="company";try{pay=(await scopeData()).pay}finally{acctScope=keep}
+    let pm={};try{pm=pdcMap()}catch(e){}
+    const items=pay.filter(p=>!p.paid&&p.src!=="plan"&&p.src!=="payplan"&&!(p.credit&&pm[p.key])).map(p=>{let w=false;try{w=!!waitingDelivery(p)}catch(e){}
+      return {payee:String(p.payee||"").slice(0,60),amt:Math.round((+p.amt||0)*100)/100,due:p.due||"",g:pgOf(p),type:String(p.type||"").slice(0,50),cat:String(p.cat||"").slice(0,50),what:String(p.what||"").slice(0,70),project:projName(p.project)||"",hold:!!p.hold,wait:w}})
+      .filter(x=>x.amt>0).sort((a,b)=>(a.due||"9").localeCompare(b.due||"9")).slice(0,600);
+    let m13=prev.m13||null;try{if(PAYCFG&&(PAYCFG["m13_"+M13Y]||ROLE==="gm"))m13=m13Totals()}catch(e){}
+    let pr=prev.payroll||null;try{if(Object.keys(COMP||{}).length)pr=payrollEst()}catch(e){}
+    await db.collection("subcons").doc("_apsnap").set({items,m13,payroll:pr,updatedAt:Date.now(),by:ME});
+  }catch(e){console.error(e)}APSNAP_BUSY=false}
+setTimeout(()=>{try{apSnap()}catch(e){}},20000);setInterval(()=>{try{apSnap()}catch(e){}},15*60e3);
 function compForm(sid,onDone){const box=el("div",{class:"askbox"});const L=(t,x)=>el("label",{class:"small lbl"},el("span",{text:t}),x);const cur=compOf(sid).cur||{};
   const dt=el("input",{class:"fin",type:"date","aria-label":"Effective date"});dt.value=iso(new Date());
   const ty=el("select",{class:"fin","aria-label":"Type"},...["Starting salary","Increase","Promotion","Adjustment","Decrease"].map(x=>el("option",{value:x,text:x})));ty.value=compOf(sid).H.length?"Increase":"Starting salary";
