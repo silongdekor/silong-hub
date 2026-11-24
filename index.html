@@ -585,7 +585,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-25c"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-25h"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4026,6 +4026,20 @@ function dfTasks(){const td=iso(new Date());const out=[];Object.entries(DFL).for
   (f.areas||[]).forEach(a=>{if(!a.done&&a.who)out.push({pid,pname:c.name,who:a.who,what:"Perspective – "+a.name,due:a.due,now:cur&&cur.k==="persp"})})});
   return out.sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"))}
 
+// ---- samples to follow (PDFs uploaded next to index.html on GitHub) ----
+const SAMPLES=[["Silong_Design_Flow_Chart.pdf","📋 Design process + quick steps","The 7 stages, the 9 quick steps for every wall, daily routine, how to send the SketchUp model. A4."],
+  ["Silong_Design_Team_Samples.pdf","📐 Design team samples","What a complete floor plan, wall sheet, wall form, fabrication drawing and SketchUp model look like. A3."],
+  ["Silong_Sample_TV_Wall_Set.pdf","🛋 TV wall – the standard to copy","Presentation sheet with exploded 3D + swatches, wall sheet, and 2 fabrication sheets with cut lists. A3."],
+  ["Sample_Worker_Pack_A3_TV_wall.pdf","👷 What the crew gets – worker pack","What the 🖨 Worker pack button prints from a filled-in wall form: A3 general sheet + electrical rough-in sheet. Fill in your wall form so yours looks like this."],
+  ["Sample_PM_Pack.pdf","🗂 Sample PM pack","What the PM gets from the 🖨 PM pack button. A4."],
+  ["Silong_Terms_PH.pdf","🔤 Silong terms list","Standard name + Philippine term, e.g. fibre cement board (Hardiflex). For Purchasing, PMs and designers. A4."]];
+function printPdf(url){try{const f=document.createElement("iframe");f.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0";f.src=url;f.onload=()=>{setTimeout(()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(e){window.open(url,"_blank")}},400)};document.body.append(f);setTimeout(()=>f.remove(),120000)}catch(e){window.open(url,"_blank")}}
+function samplesBox(){const d=el("details",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--accent,#1b7190)"},el("summary",{},el("b",{text:"📚 Samples to follow + process – open or print"})));
+  d.append(el("p",{class:"small",text:"Before you send any drawing or wall form, compare it with its sample. On a phone, use Open, then Share → Print."}));
+  SAMPLES.forEach(([f,t,h])=>d.append(el("div",{style:"display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px dashed var(--line)"},
+    el("div",{style:"flex:1 1 220px"},el("b",{text:t}),el("div",{class:"small",text:h})),
+    el("div",{class:"opts",style:"margin:0"},el("a",{class:"btn",href:f,target:"_blank",rel:"noopener",text:"Open"}),el("button",{class:"btn",text:"🖨 Print",onclick:()=>printPdf(f)})))));
+  return d}
 async function renderDesignPath(v,my){
   const td=iso(new Date());const lead=dfLead();await dfLoad();if(my!==RSEQ)return;
   const D=designers();const whoSel=(val,lbl)=>{const x=el("select",{class:"fin","aria-label":lbl||"Who"},el("option",{value:"",text:"– not assigned –"}),...D.map(p=>el("option",{value:p.id,text:p.name})));x.value=val||"";return x};
@@ -4042,6 +4056,7 @@ async function renderDesignPath(v,my){
     el("li",{text:`Every designer sends the daily report by ${typeof DREP_DUE!=="undefined"?dT12(DREP_DUE):"4:45 PM"}.`})),
     el("p",{class:"small",text:"The AAT-Gen Manager and the Project Architect assign the work. Each person ticks their own step or area when it’s done."}));
   v.append(how);
+  v.append(samplesBox());
   // my work (everyone)
   const T=dfTasks();const mine=T.filter(t=>t.who===ME);
   if(mine.length){const box=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--hivis)"},el("div",{style:"font-weight:700;margin-bottom:4px",text:"👤 Your work, soonest first"}));
@@ -4314,6 +4329,7 @@ function wfCardBox(id,w){const f=wfOf(w);const I=f.items||[],Pn=f.pts||[];const 
   if(WFEDIT===id){d.append(wfEditor(id,w));return d}
   if(!st){d.append(el("p",{class:"small",text:"List everything on this wall: finishes, every item with its size and who makes it, and every outlet, switch, data and water point."}))}
   else{
+    if(w.render&&w.render.img)d.append(el("img",{src:w.render.img,alt:"render",style:"max-width:100%;max-height:160px;display:block;margin:6px 0;border-radius:8px"}));
     d.append(el("div",{class:"small",text:[f.len?"Length "+fmtMM(f.len):"",f.ht?"height "+fmtMM(f.ht):"",f.dwg?"drawing "+f.dwg:""].filter(Boolean).join(" · ")||"Size not entered"}));
     if((f.fin||[]).length)d.append(wfTable(["Code","Where","Finish","By"],f.fin.map(x=>[x.code,x.where,x.finish,x.by])));
     if(I.length)d.append(wfTable(["Code","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],I.map(x=>[x.code,x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg||(x.by==="Client supply"?"–":"⚠ none")])));
@@ -4331,6 +4347,7 @@ function wfCardBox(id,w){const f=wfOf(w);const I=f.items||[],Pn=f.pts||[];const 
       el("button",{class:"btn",text:"Send back",onclick:async()=>{const why=prompt("What needs fixing?");if(!why)return;
       try{await db.collection(dcol(WP,"dwalls")).doc(id).update({form:{...f,status:"draft",backNote:why}});toast("Sent back.");renderDesignStudio()}catch(er){toast("Not saved.")}}}))}
   if(st)d.append(wfRelBox(id,w,f,G));
+  if(st)bt.append(el("button",{class:"btn",text:"🖨 Worker pack",onclick:()=>pkWorker([id])}),el("button",{class:"btn",text:"🖨 PM pack",onclick:()=>pkPM([id])}));
   if(bt.children.length)d.append(bt);
   return d}
 const canRelease=()=>["gm","arch","head"].includes(ROLE);
@@ -4366,16 +4383,24 @@ function wfRows(title,hint,defs,rows,mk){
   (rows||[]).forEach(addRow);
   box.append(el("button",{class:"btn",text:"+ Add a row",onclick:()=>addRow()}));
   return {box,get:()=>R.map(o=>{const v={};defs.forEach(([k,,ty])=>{const s_=o.ins[k].value.trim();v[k]=ty==="num"?(s_===""?"":+s_):s_});return v}).filter(v=>Object.entries(v).some(([k,x])=>k!=="code"&&x!==""))}}
+function wfPhotoJpeg(cv){for(const [mx,q] of [[1400,.72],[1200,.66],[1000,.62],[800,.58],[640,.55]]){const k=Math.min(1,mx/Math.max(cv.width,cv.height));const o=document.createElement("canvas");o.width=Math.round(cv.width*k);o.height=Math.round(cv.height*k);const c=o.getContext("2d");c.imageSmoothingQuality="high";c.drawImage(cv,0,0,o.width,o.height);const d=o.toDataURL("image/jpeg",q);if(d.length<350000)return {img:d,w:o.width,h:o.height}}throw new Error("photo too big")}
+function wfPhotoBox(id,w){const r=w.render;const box=el("div",{class:"wfsec"},el("b",{text:"Photo / render of this wall"}),el("div",{class:"small",text:"The rendered view (or a site photo) of this wall. It prints on every worker pack page, next to the key plan."}));
+  if(r&&r.img)box.append(el("img",{src:r.img,alt:"render",style:"max-width:100%;max-height:220px;display:block;margin:6px 0;border-radius:8px"}));
+  const fi=el("input",{type:"file",accept:"image/*","aria-label":"Render image"});const st=el("span",{class:"small"});
+  box.append(el("div",{class:"form"},fi,el("button",{class:"btn",text:r&&r.img?"Replace photo":"Upload photo",onclick:async e=>{const f_=fi.files[0];if(!f_){toast("Choose the image first.");return}e.target.disabled=true;st.textContent="Saving…";
+      try{const {cv}=await planCanvas(f_,1);const J=wfPhotoJpeg(cv);const rd={...J,at:Date.now(),by:ME,file:f_.name};await db.collection(dcol(WP,"dwalls")).doc(id).update({render:rd});if(WALLS[id])WALLS[id].render=rd;w.render=rd;const old=box.querySelector("img");const nimg=el("img",{src:J.img,alt:"render",style:"max-width:100%;max-height:220px;display:block;margin:6px 0;border-radius:8px"});if(old)old.replaceWith(nimg);else box.children[1].after(nimg);st.textContent="✓ Photo saved – your other entries are still here, remember to save the form.";e.target.disabled=false}catch(er){st.textContent="Couldn't save that image – try a smaller JPG.";e.target.disabled=false}}}),
+    r&&r.img?el("button",{class:"btn",text:"Remove photo",onclick:async()=>{if(!confirm("Remove the photo?"))return;try{await db.collection(dcol(WP,"dwalls")).doc(id).update({render:null});toast("Removed.");renderDesignStudio()}catch(er){toast("Not removed.")}}}):"",st));
+  return box}
 function wfEditor(id,w){const f=wfOf(w);const code=(w.code||"W").toUpperCase();const box=el("div",{class:"panel wfedit"});
   const pad=n=>String(n).padStart(2,"0");
   const len=el("input",{class:"fin n",type:"number",placeholder:"Length mm","aria-label":"Wall length",value:f.len||""});
   const ht=el("input",{class:"fin n",type:"number",placeholder:"Height mm","aria-label":"Wall height",value:f.ht||""});
   const dwg=el("input",{class:"fin",placeholder:"Drawing no., e.g. A-111B","aria-label":"Drawing",value:f.dwg||""});
-  const FIN=wfRows("1 · Finishes on this wall","Every surface you can see – wall, skirting, floor edge, ceiling edge.",
+  const FIN=wfRows("1 · Finishes on this wall","Every surface you can see – wall, skirting (rodapis), floor edge, ceiling edge. Use standard names with the Philippine term in brackets, e.g. cement plaster (palitada), fibre cement board (Hardiflex).",
     [["code","Code"],["where","Where"],["finish","Finish"],["by","By","sel",WF_BY]],f.fin,n=>({code:"F-"+pad(n+1)}));
-  const ITM=wfRows("2 · Items on this wall","Every cabinet, shelf, panel, light, mirror, screen, sign. If it is on the wall, it is on the list. Sizes in mm.",
-    [["code","Code"],["item","Item"],["w","W","num"],["h","H","num"],["d","D","num"],["finish","Finish"],["dd","Doors / drawers"],["by","Made by","sel",WF_BY],["dwg","Drawing no."]],f.items,n=>({code:code+"-"+pad(n+1)}));
-  const PTS=wfRows("3 · Rough-in points","Every outlet, switch, data point, water and drain. Height from the finished floor, distance from the LEFT corner looking at the wall.",
+  const ITM=wfRows("2 · Items on this wall","Every cabinet, shelf, panel, light, mirror, screen, sign. If it is on the wall, it is on the list. Sizes in mm. From left / From floor = where its bottom-left corner sits – used to draw the worker pack.",
+    [["code","Code"],["item","Item"],["w","W","num"],["h","H","num"],["d","D","num"],["finish","Finish"],["dd","Doors / drawers"],["by","Made by","sel",WF_BY],["dwg","Drawing no."],["x","From left","num"],["y","From floor","num"]],f.items,n=>({code:code+"-"+pad(n+1)}));
+  const PTS=wfRows("3 · Rough-in points","Every outlet (C.O.), switch, data point, water supply (PPR) and drain (PVC). Height from the finished floor, distance from the LEFT corner looking at the wall.",
     [["code","Code"],["point","Point"],["h","Height","num"],["x","From left","num"],["t","Trade","sel",WF_TRADES],["note","Note"]],f.pts,n=>({code:"E-"+pad(n+1),t:"E"}));
   const CNF=wfRows("4 · To confirm","Anything not decided yet – with who confirms and by when.",[["what","What"],["who","Who confirms"],["by","By when"]],f.conf,()=>({}));
   const save=async(e,status)=>{const items=ITM.get(),pts=PTS.get();
@@ -4389,7 +4414,7 @@ function wfEditor(id,w){const f=wfOf(w);const code=(w.code||"W").toUpperCase();c
     e.target.disabled=true;try{await db.collection(dcol(WP,"dwalls")).doc(id).update({form:nf});WFEDIT=null;WFOPEN=id;WOPEN=id;toast(status==="check"?"Sent to Joma for checking.":"Saved.");renderDesignStudio()}catch(er){toast("Not saved – check the connection or ask AAT for access.");e.target.disabled=false}};
   box.append(el("b",{text:`Wall form – ${code}${w.name?" · "+w.name:""}`}),
     el("div",{class:"form"},el("label",{class:"small fdate"},"Length ",len),el("label",{class:"small fdate"},"Height ",ht),dwg),
-    FIN.box,ITM.box,PTS.box,CNF.box,
+    wfPhotoBox(id,w),FIN.box,ITM.box,PTS.box,CNF.box,
     el("div",{class:"opts"},el("button",{class:"btn",text:"Save draft",onclick:e=>save(e,"draft")}),el("button",{class:"btn main",text:"Save + send to Joma for check",onclick:e=>save(e,"check")}),
       el("button",{class:"btn",text:"Cancel",onclick:()=>{WFEDIT=null;renderDesignStudio()}})));
   return box}
@@ -4416,12 +4441,169 @@ async function renderItemList(v,my){
   const L=I.filter(x=>!ILBY||(x.by||"Not set")===ILBY);
   const txt=()=>[`ITEM LIST – ${projName(WP)}${ILBY?" – "+ILBY:""}`,...L.map(x=>`${x.code} · ${x.item||""} · ${wfSize(x)} · ${x.finish||""} · ${x.by||"made by ?"} · ${x.dwg||(x.by==="Client supply"?"client supply":"NO DRAWING")}`)].join("\n");
   v.append(sec("Item list",String(L.length),"Every item from every wall form. Purchasing and the workshop work from this list – an item with no drawing does not get made.",
-    el("div",{class:"form"},fsel,el("button",{class:"btn",text:"Copy list",onclick:()=>copyText(txt())})),
+    el("div",{class:"form"},fsel,el("button",{class:"btn",text:"Copy list",onclick:()=>copyText(txt())}),el("button",{class:"btn",text:"🖨 PM pack – whole project",onclick:()=>pkPM(W.map(([id])=>id))}),el("button",{class:"btn",text:"🖨 Worker packs – released walls",onclick:()=>{const ids=W.filter(([,w])=>wfOf(w).rel).map(([id])=>id);if(!ids.length){toast("No wall is released yet.");return}pkWorker(ids)}})),
     L.length?wfTable(["Wall","Code","Item","W × H × D","Finish","Made by","Drawing","Wall form","Released"],L.map(x=>[x.wall,x.code,x.item,wfSize(x),x.finish,x.by||"⚠ not set",x.dwg||(x.by==="Client supply"?"–":"⚠ none"),WF_ST[x.st]||"–",x.rel?new Date(x.rel).toLocaleDateString("en-PH",{day:"numeric",month:"short"}):x.chg?"⚠ changed – release again":x.by==="Client supply"?"–":"🔒 not yet"])):el("p",{class:"empty",text:"No items yet."})));
   if(Pt.length){const G={};Pt.forEach(p=>{const t=(WF_TRADES.find(x=>x[0]===p.t)||["O","Other"])[1];(G[t]=G[t]||[]).push(p)});
     v.append(sec("Rough-ins by trade",String(Pt.length),"For the electrician and plumber: height from the finished floor, distance from the left corner of the wall.",
       ...Object.entries(G).map(([t,L_])=>el("div",{},el("h3",{class:"warea",text:t}),wfTable(["Wall","Code","Point","Height","From left","Note"],L_.map(x=>[x.wall,x.code,x.point,x.h!==""?fmtMM(+x.h):"⚠",x.x!==""?fmtMM(+x.x):"⚠",x.note]))))))}
 }
+// ---------- WORKER + PM PACKS (25 Nov 2026) – printed from the wall forms ----------
+const PK_GROUPS=[["items","CABINETRY, PANELS + FABRICATION"],["E","ELECTRICAL + DATA"],["P","PLUMBING"],["M","AIRCON + OTHER"],["fin","FINISHES"]];
+function pkEsc(t){return String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function pkDate(t){return t?new Date(t).toLocaleDateString("en-PH",{day:"numeric",month:"short",year:"numeric"}):""}
+function pkPts(f,g){return (f.pts||[]).filter(p=>g==="E"?["E","D"].includes(p.t):g==="P"?p.t==="P":g==="M"?!["E","D","P"].includes(p.t):false)}
+function pkElev(f,items,pts){
+  const xs=[...items.map(x=>(+x.x||0)+(+x.w||0)),...pts.map(p=>+p.x||0)],hs=[...items.map(x=>(+x.y||0)+(+x.h||0)),...pts.map(p=>+p.h||0)];
+  const L=+f.len||Math.max(1000,...xs)+300,H=+f.ht||Math.max(2400,...hs)+200;const fs=Math.max(L,H)/24,m=fs*3.2;
+  const Y=y=>H-y;let g="";
+  g+=`<rect x="0" y="0" width="${L}" height="${H}" fill="#fff" stroke="#111" stroke-width="${fs/6}"/>`;
+  g+=`<line x1="${-m/2}" y1="${H}" x2="${L+m/2}" y2="${H}" stroke="#111" stroke-width="${fs/3}"/><text x="${-m/2}" y="${H+fs*1.2}" font-size="${fs*0.8}">FLOOR</text>`;
+  g+=`<text x="${fs*0.3}" y="${fs*1.1}" font-size="${fs*0.8}" fill="#555">LEFT CORNER</text>`;
+  items.filter(x=>x.x!==""&&x.x!=null&&x.y!==""&&x.y!=null&&+x.w&&+x.h).forEach(x=>{
+    g+=`<rect x="${+x.x}" y="${Y(+x.y+ +x.h)}" width="${+x.w}" height="${+x.h}" fill="#e9d6b5" stroke="#7a5a2b" stroke-width="${fs/7}"/>`;
+    g+=`<text x="${+x.x+ +x.w/2}" y="${Y(+x.y+ +x.h/2)+fs*0.35}" font-size="${fs}" text-anchor="middle" font-weight="700">${pkEsc(x.code)}</text>`;
+    g+=`<text x="${+x.x+ +x.w/2}" y="${Y(+x.y+ +x.h/2)+fs*1.5}" font-size="${fs*0.75}" text-anchor="middle">${fmtMM(+x.w)} × ${fmtMM(+x.h)}</text>`});
+  const P=pts.filter(p=>p.h!==""&&p.h!=null&&p.x!==""&&p.x!=null);
+  P.forEach((p,i)=>{const x=+p.x,y=Y(+p.h);const col=p.t==="P"?"#1565c0":"#c62828";
+    g+=`<line x1="${x}" y1="${y}" x2="${x}" y2="${H}" stroke="${col}" stroke-width="${fs/10}" stroke-dasharray="${fs/2} ${fs/3}"/>`;
+    g+=`<circle cx="${x}" cy="${y}" r="${fs*0.45}" fill="#fff" stroke="${col}" stroke-width="${fs/6}"/>`;
+    const sd=i%2?-1:1,an=sd>0?"start":"end";
+    g+=`<text x="${x+sd*fs*0.7}" y="${y-fs*0.3}" font-size="${fs}" font-weight="700" fill="${col}" text-anchor="${an}">${pkEsc(p.code)}</text>`;
+    g+=`<text x="${x+sd*fs*0.7}" y="${y+fs*0.8}" font-size="${fs*0.75}" fill="${col}" text-anchor="${an}">↑ ${fmtMM(+p.h)}</text>`;
+    g+=`<text x="${x}" y="${H+fs*(1.3+(i%2)*1.1)}" font-size="${fs*0.8}" text-anchor="middle" fill="${col}">${fmtMM(x)}</text>`});
+  g+=`<text x="${L/2}" y="${-fs*0.6}" font-size="${fs*0.9}" text-anchor="middle">${fmtMM(L)} wall length · ${fmtMM(H)} height</text>`;
+  return `<svg viewBox="${-m} ${-m} ${L+2*m} ${H+2*m}" preserveAspectRatio="xMidYMid meet">${g}</svg>`}
+function pkTable(H,R,cls){return `<table class="${cls||""}"><tr>${H.map(h=>`<th>${pkEsc(h)}</th>`).join("")}</tr>${R.map(r=>`<tr>${r.map(c=>`<td>${pkEsc(c===""||c==null?"–":c)}</td>`).join("")}</tr>`).join("")}</table>`}
+function pkStamp(f){return f.rel?`<div class="stamp ok">RELEASED ${pkDate(f.rel.at)} · OK TO BUILD</div>`:`<div class="stamp no">NOT RELEASED – DO NOT BUILD OR FABRICATE</div>`}
+function pkHead(proj,w,title,f){return `<div class="hd"><img src="${LOGO_DOC}" alt="Silong"><div class="ht"><div class="pj">${pkEsc(proj)}</div><div class="wl">${pkEsc(w.code||"")} · ${pkEsc(w.name||"")}${w.area?" · "+pkEsc(w.area):""}</div><div class="tt">${pkEsc(title)}</div></div>${f?pkStamp(f):""}</div>`}
+function pkKey(w){const P_=w&&w.plan&&WPLANS[w.plan];if(!P_||w.x==null||!P_.img)return `<div class="none">Key plan: this wall is not pinned on a floor plan yet.</div>`;
+  const W_=P_.w||1000,H_=P_.h||700,r=Math.max(W_,H_)/28,cx=w.x*W_,cy=w.y*H_;
+  return `<svg viewBox="0 0 ${W_} ${H_}" preserveAspectRatio="xMidYMid meet"><image href="${P_.img}" x="0" y="0" width="${W_}" height="${H_}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(198,40,40,.25)" stroke="#c62828" stroke-width="${r/4}"/><circle cx="${cx}" cy="${cy}" r="${r*2.2}" fill="none" stroke="#c62828" stroke-width="${r/6}"/><rect x="${cx+r*2.4}" y="${cy-r*1.1}" width="${r*(1.3+String(w.code||"").length*1.05)}" height="${r*2.2}" fill="#c62828"/><text x="${cx+r*3}" y="${cy+r*0.55}" font-size="${r*1.6}" font-weight="700" fill="#fff">${pkEsc(w.code||"")}</text></svg>`}
+function pkVis(w,small){const im=w&&w.render&&w.render.img;
+  return `<div class="vis${small?" sm":""}"><div class="vb ph"><div class="vl">PHOTO / RENDER OF THIS WALL</div>${im?`<img src="${im}" alt="render">`:`<div class="none">No photo uploaded – ask the designer to add the render in the wall form.</div>`}</div><div class="vb kp"><div class="vl">KEY PLAN – this wall in red</div>${pkKey(w)}</div></div>`}
+const PK_FOOT=`<div class="ft">Heights are from the FINISHED FLOOR. Distances are from the LEFT corner, looking at the wall. All sizes in mm. If anything on site does not match, STOP and call the PM.</div>`;
+function pkConf(f){return (f.conf||[]).length?`<div class="conf"><b>⚠ NOT CONFIRMED YET – ask the PM before doing these:</b> ${(f.conf||[]).map(c=>pkEsc(c.what+(c.who?" ("+c.who+")":""))).join(" · ")}</div>`:""}
+function pkWorkerPages(proj,w){const f=wfOf(w);const out=[];
+  const items=(f.items||[]).filter(x=>x.by!=="Client supply");
+  if(items.length)out.push(pkHead(proj,w,"WORKER PACK – "+PK_GROUPS[0][1],f)+pkVis(w)+`<div class="el">${pkElev(f,items,[])}</div>`+pkTable(["Code","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],items.map(x=>[x.code,x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg]),"big")+pkConf(f)+PK_FOOT);
+  ["E","P","M"].forEach(g=>{const P=pkPts(f,g);if(!P.length)return;const lab=PK_GROUPS.find(x=>x[0]===g)[1];
+    out.push(pkHead(proj,w,"WORKER PACK – "+lab,f)+pkVis(w)+`<div class="el">${pkElev(f,(f.items||[]).filter(x=>x.by!=="Client supply"),P)}</div>`+pkTable(["Code","Point","Height from floor","From left corner","Note"],P.map(p=>[p.code,p.point,p.h!==""?fmtMM(+p.h):"⚠ MISSING",p.x!==""?fmtMM(+p.x):"⚠ MISSING",p.note]),"big")+pkConf(f)+PK_FOOT)});
+  if((f.fin||[]).length)out.push(pkHead(proj,w,"WORKER PACK – FINISHES",f)+pkVis(w)+pkTable(["Code","Where","Finish","Done by"],f.fin.map(x=>[x.code,x.where,x.finish,x.by]),"big")+pkConf(f)+PK_FOOT);
+  return out}
+function pkPMPage(proj,w){const f=wfOf(w);const G=wfGaps(f);
+  return pkHead(proj,w,"PM PACK – FULL WALL",f)+`<div class="meta">Wall form: <b>${pkEsc(WF_ST[f.status]||"not filled in")}</b>${f.checkedBy?" · checked by "+pkEsc(pname(f.checkedBy))+" "+pkDate(f.checkedAt):""}${f.rel?" · released by "+pkEsc(pname(f.rel.by))+" to "+pkEsc((f.rel.to||[]).join(", ")):""}${f.dwg?" · drawing "+pkEsc(f.dwg):""}</div>`+
+    pkVis(w,true)+`<div class="el sm">${pkElev(f,(f.items||[]).filter(x=>x.by!=="Client supply"),f.pts||[])}</div>`+
+    ((f.items||[]).length?pkTable(["Code","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],f.items.map(x=>[x.code,x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg])):"")+
+    ((f.pts||[]).length?pkTable(["Code","Point","Height","From left","Trade","Note"],f.pts.map(p=>[p.code,p.point,p.h!==""?fmtMM(+p.h):"⚠",p.x!==""?fmtMM(+p.x):"⚠",(WF_TRADES.find(t=>t[0]===p.t)||["","–"])[1],p.note])):"")+
+    ((f.fin||[]).length?pkTable(["Code","Where","Finish","By"],f.fin.map(x=>[x.code,x.where,x.finish,x.by])):"")+
+    (G.length?`<div class="conf"><b>Missing:</b> ${G.map(pkEsc).join(" · ")}</div>`:"")+pkConf(f)}
+function pkOpen(title,pages,land){if(!pages.length){toast("Nothing to print yet – fill in the wall form first.");return}
+  const css=`@page{size:A4 ${land?"landscape":"portrait"};margin:10mm}*{box-sizing:border-box}body{font-family:Poppins,Arial,sans-serif;color:#1d2a2c;margin:0;font-style:normal}
+  .pg{page-break-after:always;padding:2mm}.pg:last-child{page-break-after:auto}.hd{display:flex;align-items:center;gap:5mm;border-bottom:1mm solid #1b1b1b;padding-bottom:3mm;margin-bottom:3mm}
+  .hd img{height:14mm;background:#1b1b1b;padding:1.5mm 3mm;border-radius:1mm}.ht{flex:1}.pj{font-size:11pt;color:#555}.wl{font-size:18pt;font-weight:800}.tt{font-size:13pt;font-weight:700;color:#1F6F6B}
+  .stamp{font-weight:800;font-size:12pt;padding:2mm 4mm;border:0.8mm solid;border-radius:1.5mm;text-align:center;max-width:70mm}.stamp.ok{color:#2e7d32;border-color:#2e7d32}.stamp.no{color:#c62828;border-color:#c62828}
+  .el{height:${land?"95mm":"72mm"};margin:2mm 0}.el.sm{height:52mm}.vis{display:flex;gap:3mm;height:56mm;margin:2mm 0}.vis.sm{height:40mm}.vb{border:0.3mm solid #999;border-radius:1mm;padding:1mm;display:flex;flex-direction:column;min-width:0}.vb.ph{flex:1.5}.vb.kp{flex:1}.vl{font-size:8pt;font-weight:700;color:#555;margin-bottom:1mm}.vb img,.vb svg{flex:1;min-height:0;width:100%;height:100%;object-fit:contain}.none{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:#999;font-size:9pt;padding:3mm}.el svg{width:100%;height:100%;font-family:Poppins,Arial,sans-serif}
+  table{width:100%;border-collapse:collapse;margin:2mm 0;font-size:10pt}th,td{border:0.3mm solid #999;padding:1.5mm 2mm;text-align:left;vertical-align:top}th{background:#1b1b1b;color:#fff}
+  table.big{font-size:12pt}table.big td{padding:1.8mm 2.2mm}.conf{margin:2mm 0;padding:2mm 3mm;background:#fdecea;border-left:1.2mm solid #c62828;font-size:11pt}
+  .meta{font-size:10.5pt;margin-bottom:2mm}.ft{margin-top:3mm;font-size:10pt;color:#333;border-top:0.3mm solid #999;padding-top:2mm}
+  .cv h1{font-size:26pt;margin:6mm 0 2mm}.noprint{position:fixed;top:8px;right:8px}@media print{.noprint{display:none}}`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${pkEsc(title)}</title><style>${css}</style></head><body><button class="noprint" onclick="print()" style="font-size:16px;padding:8px 14px">🖨 Print / save as PDF</button>${pages.map(p=>`<div class="pg">${p}</div>`).join("")}</body></html>`;
+  const w=window.open("","_blank");if(w){w.document.write(html);w.document.close()}else toast("Allow pop-ups to print.")}
+// ---------- WORKER PACK – A3, same style as the TV wall set (25 Nov 2026) ----------
+const A3C={oak:"#c99a63",blk:"#2b2b2b",wht:"#f4f2ee",stn:"#8d8780",gry:"#b9b6b0",til:"#d9d4c9",gls:"#cfe3ea",met:"#a8adb3",lam:"#e5dccb",def:"#dedbd4",red:"#c62828",teal:"#1F6F6B",led:"#ffcf4a"};
+function a3Col(t){t=(t||"").toLowerCase();if(/oak|wood|timber|veneer|walnut|teak|narra|slat/.test(t))return A3C.oak;if(/black|dark/.test(t))return A3C.blk;if(/sintered|stone|marble|granite|quartz/.test(t))return A3C.stn;
+  if(/glass|mirror/.test(t))return A3C.gls;if(/metal|steel|alum|brass|chrome/.test(t))return A3C.met;if(/tile|porcelain|ceramic/.test(t))return A3C.til;if(/white/.test(t))return A3C.wht;
+  if(/grey|gray|cement|concrete|plaster|palitada|render|skim/.test(t))return A3C.gry;if(/laminate|hpl|formica/.test(t))return A3C.lam;if(/led|light/.test(t))return A3C.led;return A3C.def}
+function a3Svg(){const o=[];const S={o,
+  rect:(x,y,w,h,f,st,sw,ex)=>o.push(`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${Math.max(0,w).toFixed(2)}" height="${Math.max(0,h).toFixed(2)}" fill="${f||"none"}" stroke="${st||"#111"}" stroke-width="${sw==null?0.25:sw}" ${ex||""}/>`),
+  line:(x1,y1,x2,y2,st,sw,da)=>o.push(`<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${st||"#111"}" stroke-width="${sw||0.25}"${da?` stroke-dasharray="${da}"`:""}/>`),
+  text:(x,y,t,sz,an,w,fill,rot)=>o.push(`<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-size="${sz||2.6}" text-anchor="${an||"start"}" font-weight="${w||400}" fill="${fill||"#111"}"${rot?` transform="rotate(${rot} ${x.toFixed(2)} ${y.toFixed(2)})"`:""}>${pkEsc(t)}</text>`),
+  circ:(x,y,r,f,st,sw)=>o.push(`<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${f||"none"}" stroke="${st||"#111"}" stroke-width="${sw||0.25}"/>`),
+  raw:t=>o.push(t)};return S}
+function a3Scale(L,H,aw,ah){for(const s of [10,15,20,25,30,40,50,75,100,150,200])if(L/s<=aw&&H/s<=ah)return s;return 200}
+function a3Hchain(S,X,xs,y,ext,sz){xs=[...new Set(xs.map(v=>Math.round(v)))].sort((a,b)=>a-b);sz=sz||2.6;
+  xs.forEach(x=>{S.line(X(x),y-1.5,X(x),y+1.5,"#111",0.18);if(ext!=null)S.line(X(x),ext,X(x),y+(ext>y?1.5:-1.5),"#777",0.12);S.line(X(x)-0.9,y+0.9,X(x)+0.9,y-0.9,"#111",0.35)});
+  S.line(X(xs[0])-1.5,y,X(xs[xs.length-1])+1.5,y,"#111",0.18);let alt=0;
+  for(let i=1;i<xs.length;i++){const a=xs[i-1],b=xs[i],t=fmtMM(b-a),L=X(b)-X(a),m=(X(a)+X(b))/2;if(L>t.length*sz*0.58+1)S.text(m,y-0.9,t,sz,"middle");else{alt^=1;S.text(m,y-0.9-(alt?sz+0.5:0),t,sz*0.85,"middle")}}}
+function a3Vchain(S,Y,ys,x,ext,sz){ys=[...new Set(ys.map(v=>Math.round(v)))].sort((a,b)=>a-b);sz=sz||2.6;
+  ys.forEach(y=>{S.line(x-1.5,Y(y),x+1.5,Y(y),"#111",0.18);if(ext!=null)S.line(ext,Y(y),x+(ext>x?1.5:-1.5),Y(y),"#777",0.12);S.line(x-0.9,Y(y)+0.9,x+0.9,Y(y)-0.9,"#111",0.35)});
+  S.line(x,Y(ys[0])+1.5,x,Y(ys[ys.length-1])-1.5,"#111",0.18);let alt=0;
+  for(let i=1;i<ys.length;i++){const a=ys[i-1],b=ys[i],t=fmtMM(b-a),L=Y(a)-Y(b),m=(Y(a)+Y(b))/2;if(L>t.length*sz*0.58+1)S.text(x-0.9,m,t,sz,"middle",400,"#111",-90);else{alt^=1;S.text(x-0.9-(alt?sz+0.5:0),m,t,sz*0.85,"middle",400,"#111",-90)}}}
+function a3Title(S,proj,w,f,title,dwg,sheet,scale,notes){const X=332;S.rect(10,10,400,277,"none","#111",0.5);S.line(X,10,X,287,"#111",0.5);
+  S.rect(X,10,78,36,"#1b1b1b","#1b1b1b",0);S.raw(`<image href="${LOGO_DOC}" x="${X+6}" y="14" width="66" height="28" preserveAspectRatio="xMidYMid meet"/>`);
+  const lab=(t,y)=>S.text(X+3,y,t.toUpperCase().split("").join(" "),1.7,"start",400,"#777");let y=51;
+  lab("project",y);S.text(X+3,y+4.5,proj.slice(0,34),3,"start",700);y+=9;S.line(X,y,410,y,"#111",0.2);y+=4;
+  lab("wall",y);S.text(X+3,y+5,`${w.code||""}`,5,"start",800);S.text(X+3,y+9,`${(w.name||"").slice(0,32)}${w.area?" · "+w.area:""}`.slice(0,40),2.4);y+=13;S.line(X,y,410,y,"#111",0.2);y+=4;
+  lab("sheet title",y);title.forEach((l,i)=>S.text(X+3,y+4.5+i*4,l,3,"start",700));y+=6+4*title.length;S.line(X,y,410,y,"#111",0.2);y+=4;
+  const ok=!!f.rel;S.rect(X+3,y,72,11,ok?"#e8f5e9":"#fdecea",ok?"#2e7d32":A3C.red,0.6,'rx="1"');
+  S.text(X+39,y+4.6,ok?`RELEASED ${pkDate(f.rel.at).toUpperCase()}`:"NOT RELEASED",3,"middle",800,ok?"#2e7d32":A3C.red);S.text(X+39,y+8.8,ok?"OK TO BUILD":"DO NOT BUILD OR FABRICATE",2.3,"middle",700,ok?"#2e7d32":A3C.red);y+=15;
+  lab("notes",y);y+=3.8;(notes||[]).forEach(l=>{S.text(X+3,y,l,2.1,"start",400,l.startsWith("⚠")?A3C.red:"#111");y+=3})
+  const yb=232;S.line(X,yb,410,yb,"#111",0.3);S.line(X+52,yb,X+52,287,"#111",0.2);
+  lab("drawing no.",yb+4);S.text(X+3,yb+11.5,dwg,4.2,"start",800);S.text(X+55,yb+4,"S H E E T",1.7,"start",400,"#777");S.text(X+55,yb+11.5,sheet,4.2,"start",800);
+  S.line(X,yb+16,410,yb+16,"#111",0.2);lab("scale",yb+20);S.text(X+3,yb+25,scale,2.4);S.text(X+55,yb+20,"D A T E",1.7,"start",400,"#777");S.text(X+55,yb+25,pkDate(Date.now()),2.2);
+  S.line(X,yb+29,410,yb+29,"#111",0.2);lab("checked by",yb+33);S.text(X+3,yb+38,f.checkedBy?pname(f.checkedBy):"– not checked –",2.4);S.text(X+55,yb+33,"F O R M",1.7,"start",400,"#777");S.text(X+55,yb+38,(WF_ST[f.status]||"–").slice(0,14),2.2);
+  S.line(X,yb+42,410,yb+42,"#111",0.2);S.text(X+3,yb+47,"Heights from FINISHED FLOOR · from LEFT corner",1.9,"start",400,"#555");S.text(X+3,yb+50.5,"All sizes mm · print A3 at 100% for scale",1.9,"start",400,"#555")}
+function a3Table(S,x,y,cols,rows,rh,sz){const W=cols.reduce((a,c)=>a+c[1],0);rh=rh||5;sz=sz||2.5;S.rect(x,y,W,rh,"#1b1b1b","#1b1b1b",0);let cx=x;cols.forEach(([t,w])=>{S.text(cx+1.2,y+rh*0.68,t,sz*0.92,"start",600,"#fff");cx+=w});y+=rh;
+  rows.forEach(r=>{cx=x;cols.forEach(([,w],i)=>{const v=r[i]==null||r[i]===""?"–":String(r[i]);const mx=Math.floor((w-2)/(sz*0.52));S.text(cx+1.2,y+rh*0.68,v.length>mx?v.slice(0,mx-1)+"…":v,sz,"start",i===0?700:400,/^⚠/.test(v)?A3C.red:"#111");cx+=w});S.line(x,y+rh,x+W,y+rh,"#aaa",0.15);y+=rh});return y}
+function a3Elev(S,f,items,pts,box,opts){ // box: [x0,y0,w,h] page mm for the wall incl. dims
+  const xs=[...items.map(x=>(+x.x||0)+(+x.w||0)),...pts.map(p=>+p.x||0)],hs=[...items.map(x=>(+x.y||0)+(+x.h||0)),...pts.map(p=>+p.h||0)];
+  const L=+f.len||Math.max(1000,...xs)+300,H=+f.ht||Math.max(2400,...hs)+200;const [bx,by,bw,bh]=box;const sc=a3Scale(L,H,bw-26,bh-24);
+  const ox=bx+20,oy=by+12+H/sc;const X=x=>ox+x/sc,Y=y=>oy-y/sc;
+  const wallCol=a3Col(((f.fin||[]).find(z=>/wall/i.test(z.where||""))||(f.fin||[])[0]||{}).finish);
+  S.rect(X(0),Y(H),L/sc,H/sc,opts.mono?"#fff":wallCol,"#111",0.4);S.line(X(-300),Y(0),X(L+300),Y(0),"#111",0.7);
+  const placed=items.filter(x=>x.x!==""&&x.x!=null&&x.y!==""&&x.y!=null&&+x.w&&+x.h);
+  placed.forEach(x=>{const c=opts.mono?"#eee":a3Col(x.finish+" "+x.item);S.rect(X(+x.x),Y(+x.y+ +x.h),+x.w/sc,+x.h/sc,c,"#333",0.3);if(opts.mono)return;
+    const cx=X(+x.x+ +x.w/2),cy=Y(+x.y+ +x.h/2),lab=(x.code||"").split("-").pop();const tw=lab.length*2.6*0.62+2.4;
+    S.rect(cx-tw/2,cy-2.1,tw,4.2,opts.mono?"#888":A3C.teal,opts.mono?"#888":A3C.teal,0,'rx="0.8"');S.text(cx,cy+0.95,lab,2.6,"middle",700,"#fff")});
+  const P=pts.filter(p=>p.h!==""&&p.h!=null&&p.x!==""&&p.x!=null);
+  P.forEach((p,i)=>{const x=X(+p.x),y=Y(+p.h),col=p.t==="P"?"#1565c0":A3C.red;S.circ(x,y,1.4,"#fff",col,0.4);S.line(x-1,y,x+1,y,col,0.4);S.line(x,y-1,x,y+1,col,0.4);
+    if(opts.dimPts){S.line(x,y+1.4,x,Y(0),col,0.15,"1 0.7");const near=P.slice(0,i).filter(q=>Math.abs(X(+q.x)-x)<10&&Math.abs(Y(+q.h)-y)<6).length;S.text(x+(i%2?-2:2),y-1.8+near*4.5,`${p.code}`,2.7,i%2?"end":"start",800,col)}
+    else S.text(x+1.9,y-1.6,p.code,2.2,"start",700,col)});
+  if(opts.dimPts&&P.length){const xs_=[...new Set([0,...P.map(p=>Math.round(+p.x))])].sort((a,b)=>a-b);S.line(X(0),Y(0)+3,X(L),Y(0)+3,"#111",0.18);let lastX=-99;
+    xs_.forEach(v=>{const px=X(v);S.line(px,Y(0)+1.5,px,Y(0)+4.5,"#111",0.25);const tx=Math.max(px,lastX+3.2);lastX=tx;S.text(tx+0.9,Y(0)+5.5,fmtMM(v),2.4,"end",600,v?A3C.red:"#111",-90)});
+    S.text(X(L)+2,Y(0)+4,"← distance from the LEFT corner",2,"start",400,"#555");
+    const hs_=[...new Set(P.map(p=>Math.round(+p.h)))].sort((a,b)=>a-b);hs_.forEach(h=>{S.line(X(0)-1,Y(h),X(0)-12,Y(h),"#999",0.12,"0.8 0.6");S.text(X(0)-13,Y(h)+0.9,fmtMM(h),2.3,"end",600,A3C.red)});S.text(X(0)-13,Y(0)+0.9,"FFL 0",2.1,"end",600)}
+  else{const xx=[0,L];placed.forEach(x=>{xx.push(+x.x,+x.x+ +x.w)});a3Hchain(S,X,xx.filter(v=>v>=0&&v<=L),Y(H)-5,Y(H)-1,2.4);a3Hchain(S,X,[0,L],Y(0)+7,Y(0)+1,2.4);
+    const yy=[0,H];placed.forEach(x=>{yy.push(+x.y,+x.y+ +x.h)});a3Vchain(S,Y,yy.filter(v=>v>=0&&v<=H),X(0)-6,X(0)-1,2.4)}
+  return {sc,X,Y,L,H}}
+function a3Swatches(S,x,y,f,maxY){const seen={};const L=[];(f.fin||[]).forEach(z=>{if(z.finish&&!seen[z.finish]){seen[z.finish]=1;L.push([z.code||"",z.finish,z.where||""])}});
+  (f.items||[]).forEach(z=>{if(z.finish&&!seen[z.finish]){seen[z.finish]=1;L.push(["",z.finish,z.code||""])}});
+  S.text(x,y,"MATERIALS + FINISHES",2.8,"start",700);y+=3;L.forEach(([c,fn,wh])=>{if(y+11>maxY)return;S.rect(x,y,14,10,a3Col(fn),"#555",0.25);S.text(x+16,y+3.2,c,2.2,"start",700,A3C.teal);S.text(x+16,y+6.4,fn.slice(0,40),2.2,"start",700);S.text(x+16,y+9.3,wh.slice(0,44),1.9,"start",400,"#555");y+=12.5});return y}
+function a3Key(S,w,x,y,bw,bh){const P_=w&&w.plan&&WPLANS[w.plan];S.text(x,y,"KEY PLAN – this wall in red",2.6,"start",700);y+=2;S.rect(x,y,bw,bh,"#fff","#999",0.25);
+  if(!P_||w.x==null||!P_.img){S.text(x+bw/2,y+bh/2,"Wall not pinned on a floor plan",2.2,"middle",400,"#999");return}
+  const k=Math.min(bw/(P_.w||1000),bh/(P_.h||700)),iw=(P_.w||1000)*k,ih=(P_.h||700)*k,ix=x+(bw-iw)/2,iy=y+(bh-ih)/2;S.raw(`<image href="${P_.img}" x="${ix}" y="${iy}" width="${iw}" height="${ih}"/>`);
+  const cx=ix+w.x*iw,cy=iy+w.y*ih;S.circ(cx,cy,2.6,"rgba(198,40,40,.25)",A3C.red,0.6);S.circ(cx,cy,5,"none",A3C.red,0.35);const t=w.code||"";S.rect(cx+5.5,cy-2.3,t.length*1.75+2.4,4.6,A3C.red,A3C.red,0);S.text(cx+6.7,cy+1.1,t,2.8,"start",700,"#fff")}
+function a3Photo(S,w,x,y,bw,bh){S.text(x,y,"PHOTO / RENDER",2.6,"start",700);y+=2;S.rect(x,y,bw,bh,"#fff","#999",0.25);const r=w.render;
+  if(r&&r.img)S.raw(`<image href="${r.img}" x="${x+0.5}" y="${y+0.5}" width="${bw-1}" height="${bh-1}" preserveAspectRatio="xMidYMid meet"/>`);else S.text(x+bw/2,y+bh/2,"No photo yet – designer adds it in the wall form",2.1,"middle",400,"#999")}
+function a3Sheets(proj,w){const f=wfOf(w);const out=[];const items=(f.items||[]).filter(x=>x.by!=="Client supply"),allI=f.items||[];const pts=f.pts||[];const code=w.code||"W";
+  const conf=(f.conf||[]).map(c=>"⚠ "+(c.what+(c.who?" – "+c.who:"")).slice(0,40));
+  const groups=[["E","ELECTRICAL + DATA ROUGH-INS",p=>["E","D"].includes(p.t)],["P","PLUMBING ROUGH-INS",p=>p.t==="P"],["M","AIRCON + OTHER ROUGH-INS",p=>!["E","D","P"].includes(p.t)]].filter(g=>pts.some(g[2]));
+  const total=1+groups.length;let n=0;
+  // sheet 1 – general
+  {const S=a3Svg();n++;const e=a3Elev(S,f,allI,pts,[14,16,214,180],{});
+   S.text(16,205,"1",3,"start",700);S.circ(18,204,3.2,"none","#111",0.35);S.text(23,204,"ELEVATION – "+code,3.4,"start",700);S.text(23,207.6,`1:${e.sc} · finishes as built · teal tags = items · red = rough-ins (see electrical sheet)`,2.2,"start",400,"#555");
+   a3Photo(S,w,232,18,96,58);a3Key(S,w,232,84,96,52);a3Swatches(S,232,146,f,212);
+   const rows=allI.map(x=>[x.code,x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg||(x.by==="Client supply"?"–":"⚠ none")]);
+   S.text(14,216,"ITEMS ON THIS WALL",2.8,"start",700,A3C.teal);a3Table(S,14,218,[["Code",30],["Item",66],["W × H × D",38],["Finish",64],["Doors / drawers",32],["Made by",36],["Fab. drawing",46]],rows.slice(0,12),5,2.5);
+   if(rows.length>12)S.text(14,284,`+ ${rows.length-12} more items – see the PM pack`,2.2,"start",700,A3C.red);
+   a3Title(S,proj,w,f,["WALL "+code+" –","GENERAL ARRANGEMENT"],code+"-01",`${n} of ${total}`,`1:${e.sc} @ A3`,[...(f.dwg?["Design drawing: "+f.dwg]:[]),"Fabrication sheets: see the","drawing no. of each item.",...conf.slice(0,8)]);out.push(S.o.join(""))}
+  groups.forEach(([k,lab,fn])=>{const S=a3Svg();n++;const P=pts.filter(fn);const e=a3Elev(S,f,allI,P,[22,16,240,178],{mono:1,dimPts:1});
+   S.circ(18,204,3.2,"none","#111",0.35);S.text(16,205,String(n),3,"start",700);S.text(23,204,lab+" – "+code,3.4,"start",700);S.text(23,207.6,`1:${e.sc} · items shown grey · every point: height from finished floor + distance from the left corner`,2.2,"start",400,"#555");
+   S.text(270,22,"LEGEND",2.8,"start",700);const col=k==="P"?"#1565c0":A3C.red;S.circ(273,28,1.4,"#fff",col,0.4);S.line(272,28,274,28,col,0.4);S.line(273,27,273,29,col,0.4);S.text(276.5,29,k==="P"?"water / drain point":"outlet, switch, data or feed",2.2);
+   S.text(270,36,"Mark every point on site BEFORE",2.2,"start",700);S.text(270,39.2,"the wall is closed. Photo it and",2.2);S.text(270,42.4,"send it to the PM.",2.2);
+   S.text(14,216,"SCHEDULE",2.8,"start",700,col);a3Table(S,14,218,[["Code",24],["Point",92],["Height from floor",36],["From left corner",36],["Trade",34],["Note",90]],P.slice(0,12).map(p=>[p.code,p.point,p.h!==""?fmtMM(+p.h):"⚠ MISSING",p.x!==""?fmtMM(+p.x):"⚠ MISSING",(WF_TRADES.find(t=>t[0]===p.t)||["","–"])[1],p.note]),5,2.6);
+   if(P.length>12)S.text(14,284,`+ ${P.length-12} more points – see the PM pack`,2.2,"start",700,A3C.red);
+   a3Title(S,proj,w,f,["WALL "+code+" –",lab],code+"-0"+n,`${n} of ${total}`,`1:${e.sc} @ A3`,["Read with sheet "+code+"-01.",...conf.slice(0,8)]);out.push(S.o.join(""))});
+  return out}
+function a3Open(title,svgs){if(!svgs.length){toast("Nothing to print yet – fill in the wall form first.");return}
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${pkEsc(title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap"><style>@page{size:A3 landscape;margin:0}body{margin:0;background:#888}.pg{width:420mm;height:297mm;background:#fff;margin:0 auto 6mm;page-break-after:always;overflow:hidden}.pg:last-child{page-break-after:auto}svg{display:block;width:420mm;height:297mm;font-family:Poppins,Arial,sans-serif}
+  .noprint{position:fixed;top:8px;right:8px;font-size:16px;padding:8px 14px;z-index:9}@media print{.noprint{display:none}body{background:#fff}.pg{margin:0}}</style></head><body><button class="noprint" onclick="print()">🖨 Print A3 / save as PDF</button>${svgs.map(s=>`<div class="pg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 297">${s}</svg></div>`).join("")}</body></html>`;
+  const w=window.open("","_blank");if(w){w.document.write(html);w.document.close()}else toast("Allow pop-ups to print.")}
+function pkWorker(ids){const proj=projName(WP);const P=[];ids.forEach(id=>{const w=WALLS[id];if(w&&wfOf(w).status)P.push(...a3Sheets(proj,w))});a3Open("Worker pack – "+proj,P)}
+function pkPM(ids){const proj=projName(WP);const W=ids.map(id=>[id,WALLS[id]]).filter(([,w])=>w);
+  const cover=`<div class="cv">${pkHead(proj,{code:"PM PACK",name:"all walls"},"Wall forms, items, rough-ins and release status",null)}<h1>${pkEsc(proj)}</h1>`+
+    pkTable(["Wall","Name","Area","Wall form","Released","Items","Rough-ins","Missing"],W.map(([,w])=>{const f=wfOf(w);return [w.code,w.name,w.area,WF_ST[f.status]||"not filled in",f.rel?pkDate(f.rel.at):f.relOld?"changed – release again":"not yet",(f.items||[]).length,(f.pts||[]).length,f.status?wfGaps(f).length:"–"]}))+`<div class="meta">Printed ${pkDate(Date.now())} from Silong Hub.</div></div>`;
+  pkOpen("PM pack – "+proj,[cover,...W.filter(([,w])=>wfOf(w).status).map(([,w])=>pkPMPage(proj,w))],false)}
 // ---- by person ----
 async function renderTeam(v,my){
   const A=await loadAllWalls();if(my!==RSEQ)return;const td=iso(new Date());const R=stageRows(A);
