@@ -365,6 +365,11 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
 .wpin{position:absolute;transform:translate(-50%,-50%);font:700 11px/1.2 system-ui,sans-serif;padding:3px 6px;min-height:0;border-radius:10px;background:#1b7190;color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);white-space:nowrap;cursor:pointer;z-index:2}
 .wpin.ok{background:#2E7D4F}.wpin.on{background:#E9B825;color:#2B2000;z-index:3}
 .wcode{display:inline-block;font:700 12px/1.4 ui-monospace,Menlo,monospace;background:var(--night-bg);color:var(--night);border-radius:6px;padding:1px 6px;margin-right:6px;white-space:nowrap}
+.wfbox{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}.wfbox>summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:center}.wfbox>summary::-webkit-details-marker{display:none}
+.wft{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}.wft th,.wft td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}.wft th{font-weight:700;white-space:nowrap}
+.wfgap{margin-top:6px;font-size:13px;color:#b3261e}.wfedit{border:2px solid var(--accent,#1b7190);margin-top:8px}.wfsec{margin-top:12px;padding-top:6px;border-top:1px dashed var(--line)}
+.wfrow{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;padding:6px 0;border-bottom:1px dotted var(--line)}.wff{display:flex;flex-direction:column;font-size:11px;min-width:70px;flex:1 1 90px}.wff .fin{width:100%;flex:none;height:auto;min-height:0}
+.wfready{border-left:5px solid #2e7d32}.wfnot{border-left:5px solid #b3261e}
 .wcard{margin-top:8px}.wcard>summary{display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;padding:4px 0}.wcard>summary::-webkit-details-marker{display:none}.wname{font-weight:700}
 .wst{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-top:1px dashed var(--line)}
 .warea{margin:16px 0 2px;font-size:17px}.wstform{margin-top:10px;padding-top:6px;border-top:1px dashed var(--line)}
@@ -580,7 +585,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-24g"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-25a"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4125,9 +4130,9 @@ async function renderDesignStudio(){
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to use Design."}));return}
   const DPs=Object.entries(PROJS).filter(([,c])=>isDesignProj(c));
   v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Design team"}),el("div",{class:"dsub2",text:`${DPs.length} design project${DPs.length===1?"":"s"} · Project Architect + Architect Apprentices`})));
-  const SUBS=[["path","① Start here"],["overview","All projects"],["walls","Floor plan & walls"],["team","By person"],["myday",DESIGN_ROLES.includes(ROLE)?"My daily report":"Daily reports"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
+  const SUBS=[["path","① Start here"],["overview","All projects"],["walls","Floor plan & walls"],["items","Item list"],["team","By person"],["myday",DESIGN_ROLES.includes(ROLE)?"My daily report":"Daily reports"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
   v.append(el("div",{class:"opts subnav"},...SUBS.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}}))));
-  if(["path","walls","team","myday"].includes(dSub)){if(dSub==="path")await renderDesignPath(v,my);else if(dSub==="walls")await renderWalls(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
+  if(["path","walls","items","team","myday"].includes(dSub)){if(dSub==="path")await renderDesignPath(v,my);else if(dSub==="walls")await renderWalls(v,my);else if(dSub==="items")await renderItemList(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
   if(dSub!=="overview"){if(!DP||!isDesignProj(PROJS[DP]))DP=(DPs[0]||[])[0]||null;if(!DP){v.append(el("p",{class:"empty",text:"No design projects yet."}));return}
     const ps=el("select",{class:"fin","aria-label":"Design project"},...DPs.map(([id,c])=>el("option",{value:id,text:"Design project: "+c.name})));ps.value=DP;ps.onchange=()=>{DP=ps.value;try{localStorage.setItem("silong-dproj",DP)}catch(e){}renderDesignStudio()};v.append(el("div",{class:"form"},ps));
     const D_=await loadDesign(DP);if(my!==RSEQ)return;DDEL=D_.dd;DREP=D_.dr;DINS=D_.di;DVIS=D_.dv;DREV=D_.drev;DPAY=D_.dp;PHPROJ=DP}
@@ -4250,6 +4255,7 @@ function wallList(planId){
       WSTG.forEach(([k,lab])=>{const x=stOf(w,k);const sp=stPct(x);const lt=x.due&&x.due<td&&sp<100;
         d.append(el("div",{class:"wst"},el("b",{text:lab}),el("span",{class:"small",text:[x.who?pname(x.who):"not assigned",x.due?"due "+fd(x.due):"",x.done?"✓ done":sp+"%"].filter(Boolean).join(" · ")}),lt?el("span",{class:"tag due",text:"late"}):""))});
       if(w.note)d.append(el("div",{class:"small",text:"📝 "+w.note}));
+      d.append(wfCardBox(id,w));
       if(can)d.append(el("div",{class:"opts"},el("button",{class:"btn",text:"✏️ Edit / assign",onclick:()=>openWallForm(id)}),
         planId?el("button",{class:"btn",text:"📍 Move pin",onclick:()=>{WPICK=id;WPLAN=planId;toast("Now tap the new spot on the plan.");const b=document.querySelector(".wplanbox");if(b)b.scrollIntoView({behavior:"smooth",block:"center"})}}):"",
         el("button",{class:"btn",text:"🗑 Delete",onclick:async()=>{if(!confirm(`Delete ${w.code}? Its stages and assignments go too.`))return;try{await db.collection(dcol(WP,"dwalls")).doc(id).delete();toast("Deleted.");renderDesignStudio()}catch(e){toast("Not deleted.")}}})));
@@ -4283,6 +4289,116 @@ function openWallForm(id,pos){
       try{await db.collection(dcol(WP,"dwalls")).doc(nid).set(doc_);WOPEN=nid;toast("Saved.");renderDesignStudio()}catch(err){toast("Not saved.");e.target.disabled=false}}}),
       el("button",{class:"btn",text:"Cancel",onclick:()=>host.replaceChildren()})));
   host.append(f);if(!id&&!cd.value)cd.value="";f.scrollIntoView({behavior:"smooth",block:"center"});(id?nm:ar).focus()}
+// ---------- WALL FORM + ITEM LIST (25 Nov 2026) ----------
+// Each wall gets a form: size, finishes, items (code, size, made by, drawing), rough-ins, to-confirm.
+// Saved on the wall itself (field "form"). The Item list tab joins every wall's items for the project.
+const WF_BY=["Silong workshop","Silong crew","Fabricator","Subcontractor","Supplier","Client supply"];
+const WF_TRADES=[["E","Electrical"],["D","Data / AV"],["P","Plumbing"],["M","Aircon / mechanical"],["O","Other"]];
+const WF_ST={draft:"Draft",check:"Waiting for Joma's check",ok:"Checked"};
+let WFOPEN=null, WFEDIT=null, ILBY="";
+const wfOf=w=>(w&&w.form)||{};
+const canWallForm=()=>canWalls()||DESIGN_ROLES.includes(ROLE);
+const canWallCheck=()=>ROLE==="gm"||ROLE==="arch";
+function wfGaps(f){const G=[];const I=f.items||[];
+  if(!I.length)G.push("no items");
+  I.forEach(x=>{const miss=[];if(!x.item)miss.push("name");if(!x.by)miss.push("made by");if(x.by!=="Client supply"&&!(+x.w&&+x.h))miss.push("size");if(!x.dwg&&x.by!=="Client supply")miss.push("drawing");if(miss.length)G.push(`${x.code||"item"}: ${miss.join(", ")}`)});
+  (f.pts||[]).forEach(p=>{if(p.h===""||p.h==null||p.x===""||p.x==null)G.push(`${p.code||"point"}: height / distance`)});
+  return G}
+function wfSize(x){return [x.w,x.h,x.d].map(v=>+v?fmtMM(+v):"–").join(" × ")}
+function fmtMM(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g," ")}
+function wfCardBox(id,w){const f=wfOf(w);const I=f.items||[],Pn=f.pts||[];const st=f.status||"";const G=st?wfGaps(f):[];
+  const d=el("details",{class:"wfbox"});d.open=WFOPEN===id;d.addEventListener("toggle",()=>{WFOPEN=d.open?id:(WFOPEN===id?null:WFOPEN)});
+  d.append(el("summary",{},el("b",{text:"📋 Wall form"}),el("span",{class:"small",style:"margin-left:6px",text:st?`${I.length} item${I.length===1?"":"s"} · ${Pn.length} rough-in${Pn.length===1?"":"s"}`:"not filled in yet"}),
+    st?el("span",{class:"tag"+(st==="ok"?" ok":st==="check"?" mid":" due"),style:"margin-left:6px",text:WF_ST[st]}):el("span",{class:"tag due",style:"margin-left:6px",text:"to do"})));
+  if(WFEDIT===id){d.append(wfEditor(id,w));return d}
+  if(!st){d.append(el("p",{class:"small",text:"List everything on this wall: finishes, every item with its size and who makes it, and every outlet, switch, data and water point."}))}
+  else{
+    d.append(el("div",{class:"small",text:[f.len?"Length "+fmtMM(f.len):"",f.ht?"height "+fmtMM(f.ht):"",f.dwg?"drawing "+f.dwg:""].filter(Boolean).join(" · ")||"Size not entered"}));
+    if((f.fin||[]).length)d.append(wfTable(["Code","Where","Finish","By"],f.fin.map(x=>[x.code,x.where,x.finish,x.by])));
+    if(I.length)d.append(wfTable(["Code","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],I.map(x=>[x.code,x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg||(x.by==="Client supply"?"–":"⚠ none")])));
+    if(Pn.length)d.append(wfTable(["Code","Point","Height","From left","Trade","Note"],Pn.map(x=>[x.code,x.point,x.h!==""&&x.h!=null?fmtMM(+x.h):"⚠",x.x!==""&&x.x!=null?fmtMM(+x.x):"⚠",(WF_TRADES.find(t=>t[0]===x.t)||["","–"])[1],x.note])));
+    if((f.conf||[]).length)d.append(el("div",{class:"small",style:"margin-top:4px"},el("b",{text:"To confirm: "}),f.conf.map(c=>`${c.what}${c.who?" ("+c.who+")":""}${c.by?" – by "+c.by:""}`).join(" · ")));
+    if(G.length)d.append(el("div",{class:"wfgap"},el("b",{text:"Missing: "}),G.slice(0,8).join(" · ")+(G.length>8?` … +${G.length-8} more`:"")));
+    if(st==="ok")d.append(el("div",{class:"small",text:`✓ Checked by ${pname(f.checkedBy)} · ${f.checkedAt?new Date(f.checkedAt).toLocaleDateString("en-PH",{day:"numeric",month:"short"}):""}`}));
+    if(f.backNote&&st==="draft")d.append(el("div",{class:"wfgap"},el("b",{text:"Sent back: "}),f.backNote));
+  }
+  const bt=el("div",{class:"opts"});
+  if(canWallForm())bt.append(el("button",{class:"btn",text:st?"✏️ Edit wall form":"✏️ Fill in the wall form",onclick:()=>{WFEDIT=id;WFOPEN=id;WOPEN=id;renderDesignStudio()}}));
+  if(st==="check"&&canWallCheck()){
+    bt.append(el("button",{class:"btn main",text:"✓ Checked – OK",onclick:async e=>{if(G.length&&!confirm(`Still missing:\n${G.join("\n")}\n\nMark as checked anyway?`))return;e.target.disabled=true;
+      try{await db.collection(dcol(WP,"dwalls")).doc(id).update({form:{...f,status:"ok",checkedBy:ME,checkedAt:Date.now(),backNote:""}});toast("Checked.");renderDesignStudio()}catch(er){toast("Not saved.");e.target.disabled=false}}}),
+      el("button",{class:"btn",text:"Send back",onclick:async()=>{const why=prompt("What needs fixing?");if(!why)return;
+      try{await db.collection(dcol(WP,"dwalls")).doc(id).update({form:{...f,status:"draft",backNote:why}});toast("Sent back.");renderDesignStudio()}catch(er){toast("Not saved.")}}}))}
+  if(bt.children.length)d.append(bt);
+  return d}
+function wfTable(H,R){return el("div",{class:"gwrap"},el("table",{class:"wft"},el("tr",{},...H.map(h=>el("th",{text:h}))),...R.map(r=>el("tr",{},...r.map(c=>el("td",{text:c==null||c===""?"–":String(c)}))))))}
+function wfRows(title,hint,defs,rows,mk){
+  // defs: [key,label,type(text|num|sel),opts,width]
+  const box=el("div",{class:"wfsec"},el("b",{text:title}),hint?el("div",{class:"small",text:hint}):"");const list=el("div",{});box.append(list);const R=[];
+  const addRow=(x)=>{x=x||mk(R.length);const ins={};const r=el("div",{class:"wfrow"});
+    defs.forEach(([k,lab,ty,op])=>{let i;
+      if(ty==="sel"){i=el("select",{class:"fin","aria-label":lab},el("option",{value:"",text:lab+"…"}),...op.map(o=>Array.isArray(o)?el("option",{value:o[0],text:o[1]}):el("option",{value:o,text:o})));i.value=x[k]||""}
+      else i=el("input",{class:"fin"+(ty==="num"?" n":""),type:ty==="num"?"number":"text",inputmode:ty==="num"?"numeric":null,placeholder:lab,"aria-label":lab,value:x[k]!=null?String(x[k]):""});
+      ins[k]=i;r.append(el("label",{class:"wff"},el("span",{text:lab}),i))});
+    const o={ins,r};r.append(el("button",{class:"x",text:"✕","aria-label":"Remove row",onclick:()=>{r.remove();R.splice(R.indexOf(o),1)}}));R.push(o);list.append(r)};
+  (rows||[]).forEach(addRow);
+  box.append(el("button",{class:"btn",text:"+ Add a row",onclick:()=>addRow()}));
+  return {box,get:()=>R.map(o=>{const v={};defs.forEach(([k,,ty])=>{const s_=o.ins[k].value.trim();v[k]=ty==="num"?(s_===""?"":+s_):s_});return v}).filter(v=>Object.entries(v).some(([k,x])=>k!=="code"&&x!==""))}}
+function wfEditor(id,w){const f=wfOf(w);const code=(w.code||"W").toUpperCase();const box=el("div",{class:"panel wfedit"});
+  const pad=n=>String(n).padStart(2,"0");
+  const len=el("input",{class:"fin n",type:"number",placeholder:"Length mm","aria-label":"Wall length",value:f.len||""});
+  const ht=el("input",{class:"fin n",type:"number",placeholder:"Height mm","aria-label":"Wall height",value:f.ht||""});
+  const dwg=el("input",{class:"fin",placeholder:"Drawing no., e.g. A-111B","aria-label":"Drawing",value:f.dwg||""});
+  const FIN=wfRows("1 · Finishes on this wall","Every surface you can see – wall, skirting, floor edge, ceiling edge.",
+    [["code","Code"],["where","Where"],["finish","Finish"],["by","By","sel",WF_BY]],f.fin,n=>({code:"F-"+pad(n+1)}));
+  const ITM=wfRows("2 · Items on this wall","Every cabinet, shelf, panel, light, mirror, screen, sign. If it is on the wall, it is on the list. Sizes in mm.",
+    [["code","Code"],["item","Item"],["w","W","num"],["h","H","num"],["d","D","num"],["finish","Finish"],["dd","Doors / drawers"],["by","Made by","sel",WF_BY],["dwg","Drawing no."]],f.items,n=>({code:code+"-"+pad(n+1)}));
+  const PTS=wfRows("3 · Rough-in points","Every outlet, switch, data point, water and drain. Height from the finished floor, distance from the LEFT corner looking at the wall.",
+    [["code","Code"],["point","Point"],["h","Height","num"],["x","From left","num"],["t","Trade","sel",WF_TRADES],["note","Note"]],f.pts,n=>({code:"E-"+pad(n+1),t:"E"}));
+  const CNF=wfRows("4 · To confirm","Anything not decided yet – with who confirms and by when.",[["what","What"],["who","Who confirms"],["by","By when"]],f.conf,()=>({}));
+  const save=async(e,status)=>{const items=ITM.get(),pts=PTS.get();
+    const seen={};for(const x of [...items,...pts]){const k=(x.code||"").toUpperCase();if(!k){toast("Every item and point needs a code.");return}if(seen[k]){toast(k+" is used twice.");return}seen[k]=1}
+    pts.forEach(p=>{const t=(p.code||"")[0];if(!p.t&&WF_TRADES.some(x=>x[0]===t))p.t=t});
+    if(f.status==="ok"&&!confirm("This wall form was already checked. Saving changes sends it back for checking. Continue?"))return;
+    const nf={len:+len.value||"",ht:+ht.value||"",dwg:dwg.value.trim(),fin:FIN.get(),items:items.map(x=>({...x,code:x.code.toUpperCase()})),pts:pts.map(x=>({...x,code:x.code.toUpperCase()})),conf:CNF.get(),
+      status,updatedAt:Date.now(),by:ME,checkedBy:null,checkedAt:null,backNote:status==="check"?"":(f.backNote||"")};
+    if(status==="check"){const G=wfGaps(nf);if(G.length&&!confirm(`Still missing:\n${G.slice(0,12).join("\n")}\n\nSend for checking anyway?`))return}
+    e.target.disabled=true;try{await db.collection(dcol(WP,"dwalls")).doc(id).update({form:nf});WFEDIT=null;WFOPEN=id;WOPEN=id;toast(status==="check"?"Sent to Joma for checking.":"Saved.");renderDesignStudio()}catch(er){toast("Not saved – check the connection or ask AAT for access.");e.target.disabled=false}};
+  box.append(el("b",{text:`Wall form – ${code}${w.name?" · "+w.name:""}`}),
+    el("div",{class:"form"},el("label",{class:"small fdate"},"Length ",len),el("label",{class:"small fdate"},"Height ",ht),dwg),
+    FIN.box,ITM.box,PTS.box,CNF.box,
+    el("div",{class:"opts"},el("button",{class:"btn",text:"Save draft",onclick:e=>save(e,"draft")}),el("button",{class:"btn main",text:"Save + send to Joma for check",onclick:e=>save(e,"check")}),
+      el("button",{class:"btn",text:"Cancel",onclick:()=>{WFEDIT=null;renderDesignStudio()}})));
+  return box}
+async function renderItemList(v,my){
+  const WPs=wallProjs();if(!WPs.length){v.append(el("p",{class:"empty",text:"No projects yet."}));return}
+  if(!WP||!PROJS[WP])WP=(WPs.find(([,c])=>isDesignProj(c))||WPs[0])[0];
+  const ps=el("select",{class:"fin","aria-label":"Project"},...WPs.map(([id,c])=>el("option",{value:id,text:"Project: "+c.name})));ps.value=WP;
+  ps.onchange=()=>{WP=ps.value;WPLAN=null;WOPEN=null;try{localStorage.setItem("silong-wproj",WP)}catch(e){}renderDesignStudio()};v.append(el("div",{class:"form"},ps));
+  const D=await loadWalls(WP);if(my!==RSEQ)return;WPLANS=D.plans;WALLS=D.walls;
+  const W=Object.entries(WALLS).sort((a,b)=>(a[1].area||"").localeCompare(b[1].area||"")||(a[1].code||"").localeCompare(b[1].code||"",undefined,{numeric:true}));
+  if(!W.length){v.append(el("p",{class:"empty",text:"No walls yet – add them in Floor plan & walls."}));return}
+  const I=[],Pt=[];W.forEach(([id,w])=>{const f=wfOf(w);(f.items||[]).forEach(x=>I.push({...x,wall:w.code,area:w.area||"",st:f.status||""}));(f.pts||[]).forEach(x=>Pt.push({...x,wall:w.code,area:w.area||""}))});
+  const noForm=W.filter(([,w])=>!wfOf(w).status),notOk=W.filter(([,w])=>wfOf(w).status&&wfOf(w).status!=="ok");
+  const noDwg=I.filter(x=>!x.dwg&&x.by!=="Client supply"),noBy=I.filter(x=>!x.by);
+  const ready=!noForm.length&&!notOk.length&&!noDwg.length&&!noBy.length&&I.length>0;
+  v.append(el("div",{class:"panel "+(ready?"wfready":"wfnot")},el("b",{text:ready?"✓ Every wall checked, every item has a drawing":"Not ready to release yet"}),
+    el("div",{class:"small",text:`${W.length} walls · ${I.length} items · ${Pt.length} rough-ins`}),
+    noForm.length?el("div",{class:"small",text:`⚠ ${noForm.length} wall${noForm.length===1?"":"s"} without a wall form: ${noForm.map(([,w])=>w.code).join(", ")}`}):"",
+    notOk.length?el("div",{class:"small",text:`⚠ ${notOk.length} wall form${notOk.length===1?"":"s"} not checked yet: ${notOk.map(([,w])=>w.code).join(", ")}`}):"",
+    noDwg.length?el("div",{class:"small",text:`⚠ ${noDwg.length} item${noDwg.length===1?"":"s"} with no drawing: ${noDwg.map(x=>x.code).slice(0,15).join(", ")}${noDwg.length>15?" …":""}`}):"",
+    noBy.length?el("div",{class:"small",text:`⚠ ${noBy.length} item${noBy.length===1?"":"s"} with no "made by": ${noBy.map(x=>x.code).slice(0,15).join(", ")}`}):""));
+  const bys=[...new Set(I.map(x=>x.by||"Not set"))];
+  const fsel=el("select",{class:"fin","aria-label":"Made by"},el("option",{value:"",text:"Everyone (all items)"}),...bys.map(b=>el("option",{value:b,text:b})));fsel.value=ILBY;fsel.onchange=()=>{ILBY=fsel.value;renderDesignStudio()};
+  const L=I.filter(x=>!ILBY||(x.by||"Not set")===ILBY);
+  const txt=()=>[`ITEM LIST – ${projName(WP)}${ILBY?" – "+ILBY:""}`,...L.map(x=>`${x.code} · ${x.item||""} · ${wfSize(x)} · ${x.finish||""} · ${x.by||"made by ?"} · ${x.dwg||(x.by==="Client supply"?"client supply":"NO DRAWING")}`)].join("\n");
+  v.append(sec("Item list",String(L.length),"Every item from every wall form. Purchasing and the workshop work from this list – an item with no drawing does not get made.",
+    el("div",{class:"form"},fsel,el("button",{class:"btn",text:"Copy list",onclick:()=>copyText(txt())})),
+    L.length?wfTable(["Wall","Code","Item","W × H × D","Finish","Made by","Drawing","Wall form"],L.map(x=>[x.wall,x.code,x.item,wfSize(x),x.finish,x.by||"⚠ not set",x.dwg||(x.by==="Client supply"?"–":"⚠ none"),WF_ST[x.st]||"–"])):el("p",{class:"empty",text:"No items yet."})));
+  if(Pt.length){const G={};Pt.forEach(p=>{const t=(WF_TRADES.find(x=>x[0]===p.t)||["O","Other"])[1];(G[t]=G[t]||[]).push(p)});
+    v.append(sec("Rough-ins by trade",String(Pt.length),"For the electrician and plumber: height from the finished floor, distance from the left corner of the wall.",
+      ...Object.entries(G).map(([t,L_])=>el("div",{},el("h3",{class:"warea",text:t}),wfTable(["Wall","Code","Point","Height","From left","Note"],L_.map(x=>[x.wall,x.code,x.point,x.h!==""?fmtMM(+x.h):"⚠",x.x!==""?fmtMM(+x.x):"⚠",x.note]))))))}
+}
 // ---- by person ----
 async function renderTeam(v,my){
   const A=await loadAllWalls();if(my!==RSEQ)return;const td=iso(new Date());const R=stageRows(A);
