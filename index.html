@@ -585,7 +585,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-25b"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-25c"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4161,7 +4161,7 @@ async function renderDesignStudio(){
 }
 // ---------- DESIGN: FLOOR PLAN, WALLS, TEAM, DAILY REPORT ----------
 const WCATS=["Feature wall","Cabinetry / joinery","Ceiling","Flooring","Lighting","Façade / exterior","Furniture","Landscape","Other"];
-const WSTG=[["d3","3D detail"],["line","Line drawings"],["cd","Construction drawings"]];
+const WSTG=[["d3","3D detail"],["line","Line drawings"],["cd","Construction drawings"],["fab","Fabrication drawings"],["pack","Worker pack check"],["ilc","Item list check"]];
 const DREP_DUE="16:45", DREP_REMIND="16:30";
 let WP=null, WPLANS={}, WALLS={}, WPLAN=null, WZOOM=1, WPICK=null, WOPEN=null;
 try{WP=localStorage.getItem("silong-wproj")}catch(e){}
@@ -4169,7 +4169,8 @@ const canWalls=()=>ROLE==="gm"||ROLE==="arch";
 const DESIGN_ROLES=["arch","appr"];
 const designers=()=>Object.entries(ACCESS).filter(([,a])=>a&&DESIGN_ROLES.includes(a.role)).map(([id,a])=>({id,name:a.name||pname(id),role:a.role})).sort((a,b)=>(a.role===b.role?a.name.localeCompare(b.name):a.role==="arch"?-1:1));
 const wallProjs=()=>Object.entries(PROJS).filter(([,c])=>c&&c.name&&!c.closed&&c.type!=="mnt"&&c.type!=="maintenance").sort((a,b)=>a[1].name.localeCompare(b[1].name));
-const stOf=(w,k)=>((w.stages||{})[k])||{};
+const stRaw=(w,k)=>((w.stages||{})[k])||{};
+const stOf=(w,k)=>{const x=stRaw(w,k);if(x.na)return {...x,done:true};if(k==="ilc"&&w.form&&w.form.status==="ok")return {...x,done:true,auto:true};return x};
 const stPct=x=>x.done?100:Math.max(0,Math.min(100,+x.pct||0));
 const wallPct=w=>Math.round(WSTG.reduce((t,[k])=>t+stPct(stOf(w,k)),0)/WSTG.length);
 const dNowHM=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")};
@@ -4253,7 +4254,7 @@ function wallList(planId){
       d.append(el("summary",{},el("span",{class:"wcode",text:w.code||"?"}),el("span",{class:"wname",text:w.name||""}),el("span",{class:"small",style:"margin-left:auto;font-weight:700",text:p+"%"+(late?" ⚠":"")})));
       d.append(el("div",{class:"small",text:[w.cat,w.plan&&WPLANS[w.plan]?"on "+WPLANS[w.plan].name:w.x==null?"not pinned on a plan":""].filter(Boolean).join(" · ")}),el("div",{class:"pbar"},el("div",{class:"w"+(late?" late":""),style:`width:${p}%`})));
       WSTG.forEach(([k,lab])=>{const x=stOf(w,k);const sp=stPct(x);const lt=x.due&&x.due<td&&sp<100;
-        d.append(el("div",{class:"wst"},el("b",{text:lab}),el("span",{class:"small",text:[x.who?pname(x.who):"not assigned",x.due?"due "+fd(x.due):"",x.done?"✓ done":sp+"%"].filter(Boolean).join(" · ")}),lt?el("span",{class:"tag due",text:"late"}):""))});
+        d.append(el("div",{class:"wst"},el("b",{text:lab}),el("span",{class:"small",text:[x.who?pname(x.who):"not assigned",x.due?"due "+fd(x.due):"",x.na?"not needed":x.auto?"✓ wall form checked":x.done?"✓ done":sp+"%"].filter(Boolean).join(" · ")}),lt?el("span",{class:"tag due",text:"late"}):""))});
       if(w.note)d.append(el("div",{class:"small",text:"📝 "+w.note}));
       d.append(wfCardBox(id,w));
       if(can)d.append(el("div",{class:"opts"},el("button",{class:"btn",text:"✏️ Edit / assign",onclick:()=>openWallForm(id)}),
@@ -4272,17 +4273,17 @@ function openWallForm(id,pos){
   const nt=el("input",{class:"fin",placeholder:"Note (optional)",value:w.note||"","aria-label":"Note"});
   ar.addEventListener("change",()=>{if(!id&&!cd.dataset.touched)cd.value=nextCode(ar.value)});cd.addEventListener("input",()=>cd.dataset.touched="1");
   const D=designers();const S={};
-  const stRows=WSTG.map(([k,lab])=>{const x=stOf(w,k);
+  const stRows=WSTG.map(([k,lab])=>{const x=stRaw(w,k);
     const who=el("select",{class:"fin","aria-label":lab+" – who"},el("option",{value:"",text:"Who…"}),...D.map(p=>el("option",{value:p.id,text:p.name+(p.role==="arch"?" (Project Architect)":"")})));who.value=x.who||"";
     if(x.who&&!D.some(p=>p.id===x.who))who.append(el("option",{value:x.who,text:pname(x.who)})),who.value=x.who;
     const du=el("input",{class:"fin",type:"date",value:x.due||"","aria-label":lab+" – due"});
     const pc=el("input",{class:"fin n",type:"number",min:"0",max:"100",value:x.pct!=null?String(x.pct):"","aria-label":lab+" – %",placeholder:"%"});
-    const dn=el("input",{type:"checkbox"});dn.checked=!!x.done;S[k]={who,du,pc,dn,x};
-    return el("div",{class:"wstform"},el("b",{text:lab}),el("div",{class:"form"},who,el("label",{class:"small fdate"},"Due ",du),el("label",{class:"small fdate"},"% ",pc),el("label",{class:"small"},dn," done / approved")))});
+    const dn=el("input",{type:"checkbox"});dn.checked=!!x.done;const na=el("input",{type:"checkbox"});na.checked=!!x.na;S[k]={who,du,pc,dn,na,x};
+    return el("div",{class:"wstform"},el("b",{text:lab}),k==="ilc"?el("div",{class:"small",text:"Ticks itself when the wall form is checked."}):"",el("div",{class:"form"},who,el("label",{class:"small fdate"},"Due ",du),el("label",{class:"small fdate"},"% ",pc),el("label",{class:"small"},dn," done / approved"),el("label",{class:"small"},na," not needed for this wall")))});
   const f=el("div",{class:"panel",style:"border:2px solid var(--accent,#1b7190)"},el("b",{text:id?`Edit ${w.code}`:"New wall"}),dl,el("div",{class:"form"},ar,cd,nm,ct,nt),...stRows,
     el("div",{class:"opts"},el("button",{class:"btn main",text:"Save wall",onclick:async e=>{if(!cd.value.trim()){toast("Give it a code, e.g. KIT-W1.");cd.focus();return}
       const code=cd.value.trim().toUpperCase();if(Object.entries(WALLS).some(([i,x])=>i!==id&&(x.code||"").toUpperCase()===code)){toast(code+" is already used in this project.");return}
-      const stages={};WSTG.forEach(([k])=>{const s_=S[k];const o={...s_.x,who:s_.who.value,due:s_.du.value,pct:s_.dn.checked?100:Math.max(0,Math.min(100,+s_.pc.value||0)),done:s_.dn.checked};if(s_.who.value!==(s_.x.who||""))o.assignedAt=Date.now();stages[k]=o});
+      const stages={};WSTG.forEach(([k])=>{const s_=S[k];const o={...s_.x,na:s_.na.checked,who:s_.who.value,due:s_.du.value,pct:s_.dn.checked?100:Math.max(0,Math.min(100,+s_.pc.value||0)),done:s_.dn.checked};if(s_.who.value!==(s_.x.who||""))o.assignedAt=Date.now();stages[k]=o});
       const doc_={...w,code,name:nm.value.trim(),area:ar.value.trim(),cat:ct.value,note:nt.value.trim(),stages,updatedAt:Date.now()};
       if(!id){doc_.at=Date.now();doc_.by=ME;if(pos){doc_.x=pos.x;doc_.y=pos.y;doc_.plan=WPLAN}}
       e.target.disabled=true;const nid=id||safeId(code+"-"+Date.now().toString(36));
