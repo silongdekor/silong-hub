@@ -369,7 +369,7 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
 .wft{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}.wft th,.wft td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}.wft th{font-weight:700;white-space:nowrap}
 .wfgap{margin-top:6px;font-size:13px;color:#b3261e}.wfedit{border:2px solid var(--accent,#1b7190);margin-top:8px}.wfsec{margin-top:12px;padding-top:6px;border-top:1px dashed var(--line)}
 .wfrow{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;padding:6px 0;border-bottom:1px dotted var(--line)}.wff{display:flex;flex-direction:column;font-size:11px;min-width:70px;flex:1 1 90px}.wff .fin{width:100%;flex:none;height:auto;min-height:0}
-.wfready{border-left:5px solid #2e7d32}.dintro{margin:6px 0 10px;padding:8px 12px;border-radius:10px;background:#f2f6f5;border-left:4px solid #1F6F6B;font-size:14px;line-height:1.45}.subnav.dmore .opt{font-size:13px;opacity:.9}.wfrel{margin-top:8px;padding:8px 10px;border-radius:10px;background:#f4f4f1;border:1px dashed var(--line)}.wfrel.on{background:#e8f5e9;border:1px solid #2e7d32}.wfnot{border-left:5px solid #b3261e}
+.wfready{border-left:5px solid #2e7d32}.dmenu{display:flex;flex-direction:column;gap:12px;margin:8px 0}.dcat{background:var(--card,#fff);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px}.dcat.yours{border:2px solid #1F6F6B}.dcat.warn{border:2px solid #b3261e;background:#fff7f6}.dcat.aat{border:2px dashed #8e44ad}.dcat.help{padding:0;border:none;background:none}.dcath{font-weight:800;font-size:15px;letter-spacing:.5px}.dcatd{font-size:13px;opacity:.75;margin-top:-4px}.dwork{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:#f2f6f5;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;cursor:pointer}.dwork.late{background:#fdecea;border-color:#e6a19a}.dbox{display:block;width:100%;text-align:left;background:var(--card,#fff);border:1px solid var(--line);border-left:5px solid #1F6F6B;border-radius:12px;padding:10px 14px;cursor:pointer;color:inherit;font:inherit}.dbox.big .dboxt{font-size:19px}.dboxt{font-weight:800;font-size:16px}.dboxd{font-size:13.5px;opacity:.8;margin-top:2px}.dbox:hover{background:#f2f6f5}.dmenuh{font-weight:800;font-size:13px;letter-spacing:1px;text-transform:uppercase;opacity:.65;margin:8px 2px 0}.dsec{display:flex;gap:10px;align-items:flex-start;margin:6px 0 10px;flex-wrap:wrap}.dsect{flex:1 1 220px;background:#f2f6f5;border-left:4px solid #1F6F6B;border-radius:10px;padding:8px 12px}.dsecn{font-weight:800;font-size:18px}.dsecd{font-size:13.5px;line-height:1.4;margin-top:2px}.dfaq{border-top:1px dashed var(--line);padding:6px 0}.dfaq>summary{cursor:pointer;font-weight:600}.dfaq>div{margin-top:4px}.dintro{margin:6px 0 10px;padding:8px 12px;border-radius:10px;background:#f2f6f5;border-left:4px solid #1F6F6B;font-size:14px;line-height:1.45}.subnav.dmore .opt{font-size:13px;opacity:.9}.wfrel{margin-top:8px;padding:8px 10px;border-radius:10px;background:#f4f4f1;border:1px dashed var(--line)}.wfrel.on{background:#e8f5e9;border:1px solid #2e7d32}.wfnot{border-left:5px solid #b3261e}
 .wcard{margin-top:8px}.wcard>summary{display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;padding:4px 0}.wcard>summary::-webkit-details-marker{display:none}.wname{font-weight:700}
 .wst{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-top:1px dashed var(--line)}
 .warea{margin:16px 0 2px;font-size:17px}.wstform{margin-top:10px;padding-top:6px;border-top:1px dashed var(--line)}
@@ -585,7 +585,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-26a"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-26c"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4055,10 +4055,7 @@ async function renderDesignPath(v,my){
     el("li",{text:"Construction drawings (ceiling plan, details…), then MEP, building permit and as-built if the project needs them."}),
     el("li",{text:`Every designer sends the daily report by ${typeof DREP_DUE!=="undefined"?dT12(DREP_DUE):"4:45 PM"}.`})),
     el("p",{class:"small",text:"The AAT-Gen Manager and the Project Architect assign the work. Each person ticks their own step or area when it’s done."}));
-  v.append(dStartBox());
-  v.append(dPracticeBox());
-  { const sb=samplesBox();sb.open=true;v.append(sb); }
-  v.append(how);
+  if(dSub==="help"){v.append(dStartBox(),dFaqBox(),dPracticeBox());const sb=samplesBox();sb.open=true;v.append(sb,how);return}
   // my work (everyone)
   const T=dfTasks();const mine=T.filter(t=>t.who===ME);
   if(mine.length){const box=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--hivis)"},el("div",{style:"font-weight:700;margin-bottom:4px",text:"👤 Your work, soonest first"}));
@@ -4141,46 +4138,189 @@ async function renderDesignPath(v,my){
     v.append(st)}
 }
 
-let DMORE=false;
-const DINTRO={path:["START HERE","read this first. Follow steps 1 to 5 below, in order. New to this? Practise in the Practice project first – nothing in it is real. The samples to copy and the process guide are further down."],
-  overview:["PROJECTS","every design project and how far it is. Open one to see its deliverables, payments and timeline. AAT adds new projects here with + Add a design project."],
-  walls:["FLOOR PLAN & WALLS","choose the project at the top, upload the floor plan, add every wall with its code, then open each wall: assign the 6 stages and fill in the 📋 Wall form. Joma checks it, then 🚀 Release, then 🖨 print the packs."],
-  items:["ITEM LIST & RELEASE","every item from every wall form of the project. Red box = not ready (walls without a form, forms not checked, items without a drawing). Green = ready. Print the PM pack or the worker packs here."],
+const DCATS=[
+  {t:"🛠 DESIGN WORK – every day",d:"What the designers do every day, in this order.",items:[
+    ["walls","① Floor plan & walls","Pick the project, read its scope, upload the floor plans, add the walls, fill in each wall form."],
+    ["items","② Item list – For Fabrication","Every item from every wall. Green = ready. Approve for Fabrication and print the packs here."],
+    ["myday","③ Daily report","Send it by 4:45 PM every day, with screenshots of the actual work."]]},
+  {t:"🤝 CLIENT",d:"What the client asked for, site visits and revisions.",items:[
+    ["instr","Client instructions","What the client asked for, and whether it is done."],
+    ["visits","Site visits","Measurements and site visit notes."],
+    ["revs","Revisions","Minor, major or complete redesign – and what can be billed."]]},
+  {t:"📅 SCHEDULE & WHO'S DOING WHAT",d:"For AAT, Miguel and Joma.",items:[
+    ["plan","⚡ Auto-plan","Give the deadline – the Hub shares the walls between the designers and sets every due date."],
+    ["team","By person","What each designer has, what is late, whose report is in."],
+    ["path","Design path planner","The design steps of a project (concept, plans, permits) and their due dates."],
+    ["timeline","Timeline","The design dates of the project."]]},
+  {t:"💼 PROJECTS & BILLING",d:"Status of every design project and what can be billed.",items:[
+    ["overview","Projects status","Every design project, how far it is, what is late. AAT adds new projects here."],
+    ["deliv","Deliverables & payments","Design stages the client pays for, and which can be billed."]]}];
+const DHELP=["help","❓ Help","How to use it step by step, common questions, the practice project and the samples to copy."];
+const DALL=()=>[...DCATS.flatMap(c=>c.items),DHELP];
+const DINTRO={overview:["PROJECTS STATUS","every design project and how far it is. Open one to see its deliverables, payments and timeline. Only AAT adds new projects (+ Add a design project)."],
+  walls:["FLOOR PLAN & WALLS","choose the project at the top and read its 📋 Scope of works. Upload each floor plan (+ Add floor plan), add every wall with its code, then open each wall: fill in the 📋 Wall form and send it to Joma for check."],
+  items:["ITEM LIST – FOR FABRICATION","every item from every wall form of the project. Red box = not ready (walls without a form, forms not checked, items without a drawing). Green = ready. Print the PM pack or the worker packs here."],
   myday:["DAILY REPORT","send it by 4:45 PM every day: tick the walls you worked on, update the % done, and add screenshots of the actual work."],
-  team:["BY PERSON","what each designer has, what is late, and whether today's report is in."],
-  deliv:["DELIVERABLES & PAYMENTS","the design stages the client pays for, and which ones can be billed."],
-  timeline:["TIMELINE","the design dates for the project."],instr:["CLIENT INSTRUCTIONS","what the client asked for, and whether it is done."],
-  visits:["SITE VISITS","measurements and site visit notes."],revs:["REVISIONS","every revision the client asked for – major ones may be billable."]};
-function dStartBox(){const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--accent,#1b7190)"},el("div",{style:"font-weight:800;font-size:17px;margin-bottom:6px",text:"Where to start – every project"}));
+  plan:["AUTO-PLAN","the Hub shares the walls of a project between the designers, by who has the least work, and sets a due date for every stage so everything is done by the deadline. Each designer gets a message."],
+  revs:["REVISIONS","MINOR = the floor plan stays, only things on a wall change (a finish, a size, an item, an outlet) – edit the wall form, not billed. MAJOR = the layout changes (walls or rooms move, area added, new style for a space) – counts against the limit in the quote. COMPLETE REDESIGN = a new concept from scratch – tell AAT, it is a new design fee."],
+  help:["HELP","how to use the Design tab step by step, answers to common questions, the practice project and the samples to copy."]};
+function dBox(k,t,d,big){return el("button",{class:"dbox"+(big?" big":""),onclick:()=>{dSub=k;renderDesignStudio()}},el("div",{class:"dboxt",text:t}),el("div",{class:"dboxd",text:d}))}
+let AWC={at:0,data:null};
+async function allWallsCached(force){if(!force&&AWC.data&&Date.now()-AWC.at<300000)return AWC.data;const d=await loadAllWalls();AWC={at:Date.now(),data:d};return d}
+async function dMenuRender(v,my){
+  const w=el("div",{class:"dmenu"});v.append(w);
+  let A=[];try{A=await allWallsCached()}catch(e){}if(my!==RSEQ)return;
+  const td=iso(new Date());const R=stageRows(A).filter(r=>!r.done&&r.pct<100);
+  // your work
+  const mine=R.filter(r=>r.who===ME).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
+  if(mine.length||DESIGN_ROLES.includes(ROLE)){const b=el("div",{class:"dcat yours"},el("div",{class:"dcath",text:"👤 YOUR WORK"}),el("div",{class:"dcatd",text:mine.length?"Late ones first. Tap one to open the wall.":"Nothing is assigned to you yet – ask Joma or AAT."}));
+    mine.slice(0,10).forEach(r=>{const lt=r.due&&r.due<td;b.append(el("button",{class:"dwork"+(lt?" late":""),onclick:()=>{WP=r.w.pid;WPLAN=null;WOPEN=r.w.id;try{localStorage.setItem("silong-wproj",WP)}catch(e){}dSub="walls";renderDesignStudio()}},
+      el("span",{class:"wcode",text:r.w.code||"?"}),el("span",{style:"flex:1",text:`${r.w.pname} – ${r.lab}`}),el("span",{class:"tag"+(lt?" due":""),text:r.due?(lt?"LATE – was due "+fd(r.due):"due "+fd(r.due)):"no date"})))});
+    if(mine.length>10)b.append(el("div",{class:"small",text:`+ ${mine.length-10} more – see By person.`}));w.append(b)}
+  // late (managers)
+  if(["gm","head","arch"].includes(ROLE)){const late=R.filter(r=>r.due&&r.due<td);if(late.length){const by={};late.forEach(r=>{(by[r.who]=by[r.who]||[]).push(r)});
+    const b=el("div",{class:"dcat warn"},el("div",{class:"dcath",text:`⚠ LATE – ${late.length} stage${late.length===1?"":"s"}`}),el("div",{class:"dcatd",text:Object.entries(by).map(([p,L])=>`${pname(p)} ${L.length}`).join(" · ")}));
+    late.sort((a,b)=>a.due.localeCompare(b.due)).slice(0,6).forEach(r=>b.append(el("div",{class:"small",text:`${pname(r.who)} – ${r.w.pname} ${r.w.code} ${r.lab} (due ${fd(r.due)})`})));b.append(dBox("team","See By person","Everything each designer has.",false));w.append(b)}}
+  // AAT new-project checklist
+  if(ROLE==="gm"){const DPs=wallProjs().filter(([,c])=>isDesignProj(c));const b=el("details",{class:"dcat aat"},el("summary",{},el("span",{class:"dcath",text:"🆕 NEW PROJECT – AAT CHECKLIST"})));
+    b.append(el("ol",{class:"small",style:"margin:6px 0 8px 18px;padding:0;line-height:1.6"},el("li",{text:"Projects status → + Add a design project (name, client, fee)."}),el("li",{text:"Floor plan & walls → pick it → 📋 Scope of works: areas in / out, drawings needed, deadline, quote no."}),
+      el("li",{text:"Joma uploads the floor plans and adds every wall."}),el("li",{text:"⚡ Auto-plan → shares the work and sets the dates; the designers get a message."}),el("li",{text:"Watch LATE above. Over the revision limit → you get a message → Send to Accounts for billing."})));
+    DPs.forEach(([pid,c])=>{const W=A.filter(x=>x.pid===pid);const pl=W.some(x=>WSTG.some(([k])=>stRaw(x,k).who));const tk=(ok,t)=>el("span",{class:"tag"+(ok?" ok":" due"),text:(ok?"✓ ":"✗ ")+t});
+      b.append(el("div",{style:"display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:5px 0;border-top:1px dashed var(--line)"},el("b",{style:"flex:1 1 160px",text:c.name}),tk(!!(c.scope&&c.scope.at),"scope"),tk(W.length>0,W.length+" walls"),tk(pl,"planned")))});
+    w.append(b)}
+  DCATS.forEach(c=>{const b=el("div",{class:"dcat"},el("div",{class:"dcath",text:c.t}),el("div",{class:"dcatd",text:c.d}));c.items.forEach(([k,t,d],i)=>b.append(dBox(k,t,d,c===DCATS[0])));w.append(b)});
+  w.append(el("div",{class:"dcat help"},dBox(DHELP[0],DHELP[1],DHELP[2],true)));
+}
+// ---- SCOPE OF WORKS (AAT fills it in when a project is added) ----
+const SCOPE_DRW=[["fp","Floor plans"],["rcp","Reflected ceiling plan"],["walls","Wall sheets / elevations"],["fab","Fabrication drawings (joinery, furniture)"],["el","Electrical layout"],["pl","Plumbing layout"],["ac","Aircon / mechanical"],["3d","3D perspectives / renders"],["permit","Permit set (signed + sealed)"]];
+let CURSCOPE=null;
+function scopeOf(pid){const c=PROJS[pid]||{};return c.scope||null}
+function inScope(sc,area){if(!sc||!(sc.areasIn||"").trim())return true;const a=(area||"").toLowerCase().trim();if(!a)return true;return sc.areasIn.split(/\n|,/).map(x=>x.trim().toLowerCase()).filter(Boolean).some(x=>a.includes(x)||x.includes(a))}
+function scopeBox(pid){const sc=scopeOf(pid);const c=PROJS[pid]||{};const can=ROLE==="gm"&&pid!==BARN;
+  const d=el("details",{class:"panel",style:"margin:8px 0;border-left:5px solid #8e44ad"},el("summary",{},el("b",{text:"📋 Scope of works – read this first"}),el("span",{class:"small",style:"margin-left:6px",text:sc&&sc.at?(sc.deadline?"deadline "+fd(sc.deadline):"no deadline set"):"not filled in yet"})));
+  if(!sc||!sc.at){d.open=can;d.append(el("p",{class:"small",text:can?"Fill this in before the team starts: which areas are included, which drawings are needed, and the deadline.":"AAT has not filled in the scope yet. Ask AAT before you start drawing."}))}
+  else{const dr=(sc.drawings||[]).map(k=>(SCOPE_DRW.find(x=>x[0]===k)||[k,k])[1]);
+    d.append(el("div",{class:"small",style:"line-height:1.55"},el("div",{},el("b",{text:"Included: "}),(sc.areasIn||"–").replace(/\n/g," · ")),sc.areasOut?el("div",{},el("b",{text:"NOT included: "}),sc.areasOut.replace(/\n/g," · ")):"",
+      el("div",{},el("b",{text:"Drawings needed: "}),dr.join(" · ")||"–"),el("div",{},el("b",{text:"Deadline: "}),sc.deadline?fd(sc.deadline):"–",sc.quote?" · Quote / proposal: "+sc.quote:""),sc.notes?el("div",{},el("b",{text:"Notes: "}),sc.notes):""))}
+  if(can){const ai=el("textarea",{placeholder:"Areas INCLUDED – one per line, e.g. Kitchen, Living, Master bedroom","aria-label":"Areas included",style:"min-height:70px"});ai.value=(sc&&sc.areasIn)||"";
+    const ao=el("textarea",{placeholder:"Areas NOT included (optional)","aria-label":"Areas not included",style:"min-height:44px"});ao.value=(sc&&sc.areasOut)||"";
+    const ck=SCOPE_DRW.map(([k,l])=>{const i=el("input",{type:"checkbox"});i.checked=!!(sc&&(sc.drawings||[]).includes(k));return [k,i,el("label",{class:"small",style:"display:flex;gap:6px;align-items:center"},i,l)]});
+    const dl=el("input",{class:"fin",type:"date","aria-label":"Deadline"});dl.value=(sc&&sc.deadline)||"";const q=el("input",{class:"fin",placeholder:"Quote / proposal no. or NAS link","aria-label":"Quote"});q.value=(sc&&sc.quote)||"";
+    const nt=el("input",{class:"fin",placeholder:"Notes for the team (optional)","aria-label":"Notes"});nt.value=(sc&&sc.notes)||"";
+    const ed=el("details",{class:"grp"},el("summary",{},el("span",{class:"btn",text:sc&&sc.at?"✏️ Edit the scope":"✏️ Fill in the scope"})),ai,ao,el("div",{class:"small",style:"font-weight:700;margin-top:6px",text:"Drawings needed"}),
+      el("div",{style:"display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:2px 10px"},...ck.map(x=>x[2])),el("div",{class:"form"},el("label",{class:"small fdate"},"Deadline ",dl),q,nt),
+      el("button",{class:"btn main",text:"Save scope",onclick:async e=>{if(!ai.value.trim()){toast("Write the areas included first.");ai.focus();return}const scope={areasIn:ai.value.trim(),areasOut:ao.value.trim(),drawings:ck.filter(x=>x[1].checked).map(x=>x[0]),deadline:dl.value,quote:q.value.trim(),notes:nt.value.trim(),at:Date.now(),by:ME};
+        e.target.disabled=true;try{await db.collection("projects").doc(pid).update({scope});if(PROJS[pid])PROJS[pid].scope=scope;toast("Scope saved – the team sees it now.");renderDesignStudio()}catch(er){toast("Not saved.");e.target.disabled=false}}}));
+    if(!sc||!sc.at)ed.open=true;d.append(ed)}
+  return d}
+// ---- AUTO-PLAN ----
+function workdays(a,b){const out=[];let d=new Date(a+"T12:00:00");const e=new Date(b+"T12:00:00");while(d<=e){const g=d.getDay();if(g!==0&&g!==6)out.push(iso(d));d.setDate(d.getDate()+1)}return out}
+async function renderAutoPlan(v,my){
+  if(!["gm","head","arch"].includes(ROLE)){v.append(el("p",{class:"empty",text:"Only AAT, Miguel and Joma use Auto-plan. Your work is on the Design menu under YOUR WORK."}));return}
+  const WPs=wallProjs();if(!WPs.length){v.append(el("p",{class:"empty",text:"No projects yet."}));return}
+  if(!WP||!PROJS[WP])WP=(WPs.find(([,c])=>isDesignProj(c))||WPs[0])[0];
+  const ps=el("select",{class:"fin","aria-label":"Project"},...WPs.map(([id,c])=>el("option",{value:id,text:"Project: "+c.name})));ps.value=WP;ps.onchange=()=>{WP=ps.value;WPLAN=null;WOPEN=null;try{localStorage.setItem("silong-wproj",WP)}catch(e){}renderDesignStudio()};v.append(el("div",{class:"form"},ps));
+  const D=await loadWalls(WP);let A=[];try{A=await allWallsCached(true)}catch(e){}if(my!==RSEQ)return;WALLS=D.walls;const sc=scopeOf(WP);
+  const W=Object.entries(WALLS).filter(([,w])=>inScope(sc,w.area)).sort((a,b)=>(a[1].area||"").localeCompare(b[1].area||"")||(a[1].code||"").localeCompare(b[1].code||"",undefined,{numeric:true}));
+  if(!W.length){v.append(el("p",{class:"empty",text:"No walls yet. Joma first uploads the floor plans and adds every wall in ① Floor plan & walls – then come back here."}));return}
+  const DS=designers();if(!DS.length){v.append(el("p",{class:"empty",text:"No designers set up (Project Architect / Architect Apprentice roles)."}));return}
+  const td=iso(new Date());const st=el("input",{class:"fin",type:"date","aria-label":"Start"});st.value=td;const dl=el("input",{class:"fin",type:"date","aria-label":"Deadline"});dl.value=(sc&&sc.deadline)||"";
+  const who=DS.map(p=>{const i=el("input",{type:"checkbox"});i.checked=true;return [p,i]});const rp=el("input",{type:"checkbox"});
+  const out=el("div",{});
+  v.append(el("div",{class:"panel"},el("b",{text:`${W.length} wall${W.length===1?"":"s"} in scope`}),sc&&sc.at?"":el("div",{class:"small",style:"color:#b3261e",text:"⚠ No scope of works yet – every wall is planned. AAT fills the scope in ① Floor plan & walls."}),
+    el("div",{class:"form"},el("label",{class:"small fdate"},"Start ",st),el("label",{class:"small fdate"},"Deadline ",dl)),
+    el("div",{class:"small",style:"font-weight:700;margin-top:6px",text:"Share the work between:"}),...who.map(([p,i])=>el("label",{class:"small",style:"display:flex;gap:6px;align-items:center"},i,`${p.name} (${ROLES[p.role]||""})`)),
+    el("label",{class:"small",style:"display:flex;gap:6px;align-items:center;margin-top:6px"},rp,"Also re-plan stages that already have a person (normally leave this off)"),
+    el("div",{class:"opts"},el("button",{class:"btn main",text:"Preview the plan",onclick:()=>preview()})),out));
+  let PLAN=null;
+  const preview=()=>{out.replaceChildren();const ppl=who.filter(x=>x[1].checked).map(x=>x[0]);if(!ppl.length){toast("Tick at least one person.");return}if(!dl.value){toast("Set the deadline.");return}
+    const days=workdays(st.value||td,dl.value);if(!days.length){toast("The deadline must be after the start date.");return}
+    const load={};ppl.forEach(p=>load[p.id]=stageRows(A.filter(x=>x.pid!==WP)).filter(r=>r.who===p.id&&!r.done&&r.pct<100).length);
+    const units={};ppl.forEach(p=>units[p.id]=[]);const keys=WSTG.map(x=>x[0]).filter(k=>k!=="ilc");
+    W.forEach(([id,w],wi)=>{const todo=keys.filter(k=>{const x=stRaw(w,k);return !x.na&&!x.done&&(rp.checked||!x.who)});if(!todo.length)return;
+      const had=keys.map(k=>stRaw(w,k).who).find(x=>x&&ppl.some(p=>p.id===x));const p=had&&!rp.checked?had:ppl.slice().sort((a,b)=>load[a.id]-load[b.id])[0].id;
+      load[p]+=todo.length;todo.forEach(k=>units[p].push({id,w,k,si:keys.indexOf(k),wi}))});
+    PLAN=[];Object.entries(units).forEach(([p,U])=>{U.sort((a,b)=>a.si-b.si||a.wi-b.wi);const n=U.length;U.forEach((u,i)=>{const di=Math.max(0,Math.min(days.length-1,Math.ceil((i+1)*days.length/n)-1));PLAN.push({...u,who:p,due:days[di]})})});
+    if(!PLAN.length){out.append(el("p",{class:"small",text:"Nothing to plan – every stage already has a person (tick re-plan to change them)."}));return}
+    const byP={};PLAN.forEach(x=>(byP[x.who]=byP[x.who]||[]).push(x));
+    out.append(el("div",{class:"small",style:"margin:8px 0",text:`${PLAN.length} stages over ${days.length} working days (Mon–Fri), last one due ${fd(dl.value)}.`}));
+    Object.entries(byP).forEach(([p,L])=>out.append(el("details",{class:"panel"},el("summary",{},el("b",{text:pname(p)}),el("span",{class:"small",style:"margin-left:6px",text:`${new Set(L.map(x=>x.id)).size} walls · ${L.length} stages`})),
+      wfTable(["Wall","Stage","Due"],L.map(x=>[x.w.code,(WSTG.find(s=>s[0]===x.k)||["",x.k])[1],fd(x.due)])))));
+    out.append(el("div",{class:"opts"},el("button",{class:"btn main",text:"✅ Save the plan + tell the designers",onclick:async e=>{e.target.disabled=true;try{await savePlan();toast("Plan saved – the designers have a message.");AWC.at=0;dSub="team";renderDesignStudio()}catch(er){toast("Not all saved – check the connection and try again.");e.target.disabled=false}}})))};
+  const savePlan=async()=>{const by={};PLAN.forEach(x=>(by[x.id]=by[x.id]||[]).push(x));const now=Date.now();
+    for(const [id,L] of Object.entries(by)){const w=WALLS[id];const stages={...(w.stages||{})};L.forEach(x=>{stages[x.k]={...(stages[x.k]||{}),who:x.who,due:x.due,assignedAt:now,planned:true}});await db.collection(dcol(WP,"dwalls")).doc(id).update({stages,updatedAt:now})}
+    const per={};PLAN.forEach(x=>(per[x.who]=per[x.who]||[]).push(x));
+    const body=Object.entries(per).map(([p,L])=>`${pname(p)}:\n`+L.sort((a,b)=>a.due.localeCompare(b.due)).map(x=>`  ${x.w.code} ${(WSTG.find(s=>s[0]===x.k)||["",x.k])[1]} – due ${fd(x.due)}`).join("\n")).join("\n\n");
+    try{await db.collection("messages").doc("m"+now).set({project:WP,projName:projName(WP),type:"update",to:"appr",toAll:["arch","head"],from:ROLE,fromId:ME,subject:`New design work – ${projName(WP)}`,body:body+"\n\nOpen Design → YOUR WORK to start. Late ones show in red.",status:"open",replies:[],createdAt:now,updatedAt:now})}catch(_){}}
+}
+// ---- one-time morning message for the designers (26 Nov 2026) ----
+async function seedDesignMsg(){if(!db||ROLE!=="gm")return;try{const mk=await db.doc("meta/dmsg26").get();if(mk&&mk.exists)return;const now=Date.now();
+  await db.collection("messages").doc("m"+now+"d").set({project:"",projName:"Design team",type:"update",to:"appr",toAll:["arch","head"],from:"gm",fromId:ME,subject:"TODAY – floor plans for Cecil Salva Condo and Jazzy Cow",
+    body:"Good morning. Today please:\n1. Open Silong Hub → Design → ① Floor plan & walls.\n2. Choose \"Cecil Salva Condo – Park McKinley West\" at the top. Read the 📋 Scope of works (if it is still empty, ask AAT).\n3. Press + Add floor plan and upload every floor plan (one per floor). Then + Add a wall for every wall, with its code (e.g. LIV-W1).\n4. Do the same for \"Jazzy Cow\".\n5. Joma: when the walls are in, press ⚡ Auto-plan to share the work and set the dates.\nNew to the Hub? Design → ❓ Help has the steps, answers and a Practice project.\nDaily report by 4:45 PM. – AAT",
+    status:"open",replies:[],createdAt:now,updatedAt:now});await db.doc("meta/dmsg26").set({at:now})}catch(e){}}
+function dFaqBox(){const Q=[
+  ["How do I add a new project?","Only AAT adds projects, in Projects status with + Add a design project, and fills in its scope. Ask AAT. When it is there, pick it at the top of ① Floor plan & walls."],
+  ["How do I add a wall?","① Floor plan & walls → choose the project at the top → + Add floor plan (one per floor) → + Add a wall. Give it a code like LIV-W1 and tap where it is on the plan."],
+  ["How do I give a designer a wall?","Open the wall → ✏️ Edit / assign → choose the person and the due date for each of the 6 stages. Tick “not needed” for a stage the wall doesn't need."],
+  ["How do I fill in the wall form?","Open the wall → 📋 Wall form → ✏️ Fill in the wall form. Add the photo / render, the finishes, every item (size, made by, drawing no.) and every outlet / switch / water point. Then Save + send to Joma for check."],
+  ["Why is Approve for Fabrication locked?","It unlocks only when the wall form is checked by a second person AND nothing is missing. The wall card tells you exactly what is still missing."],
+  ["It says “Not saved”. What do I do?","Check your internet first and try again. If it still says Not saved, tell AAT the same day – your Hub access may need a setting changed."],
+  ["I changed a wall after it was approved for fabrication.","The approval is cancelled automatically. Send it for checking again, approve it again, and tell the workshop / Purchasing what changed."],
+  ["What is a minor or a major revision?","MINOR: the floor plan stays, only things on a wall change – edit the wall form, not billed. MAJOR: the layout changes (walls or rooms move, area added, new style for a space) – log it in Revisions, it counts against the quote. COMPLETE REDESIGN: a new concept – tell AAT."],
+  ["How do I know what to draw?","Open ① Floor plan & walls, choose the project and read 📋 Scope of works: the areas included, the drawings needed and the deadline. A wall outside the scope shows a red warning – ask AAT first."],
+  ["Who decides who does which wall?","⚡ Auto-plan (Joma, Miguel or AAT presses it): it shares the walls by who has the least work and sets the due dates. Your work is on the Design menu under YOUR WORK."],
+  ["How do I print the worker pack or PM pack?","On the wall card press 🖨 Worker pack or 🖨 PM pack (or in ② Item list – For Fabrication for the whole project). It opens a new page with a Print button. Allow pop-ups if nothing opens. Print the worker pack on A3 at 100%."],
+  ["A sample won't print on my phone.","Press Open, then Share → Print. The Print button works best on a computer."],
+  ["Which words do I use – Hardiflex or fibre cement board?","Standard name first, Philippine term in brackets: fibre cement board (Hardiflex). See the Silong terms list in the samples below."],
+  ["When is the daily report due?","Every day by 4:45 PM in ③ Daily report: tick the walls you worked on, update the %, add screenshots. Anything blocking you goes in the report the same day."]];
+  const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid #e67e22"},el("div",{style:"font-weight:800;font-size:16px;margin-bottom:4px",text:"💬 Common questions"}));
+  Q.forEach(([q,a])=>b.append(el("details",{class:"dfaq"},el("summary",{text:q}),el("div",{class:"small",text:a}))));return b}
+// ---- one-time: add the confirmed design projects (26 Nov 2026) – AAT's Hub does it, skips any already there ----
+let DSEED_RUN=false;
+async function seedDesignProjects(){if(DSEED_RUN||!db||ROLE!=="gm")return;DSEED_RUN=true;
+  try{const mk=await db.doc("meta/dseed26").get();if(mk&&mk.exists)return;
+    const L=[[/mckinley|salva/i,{name:"Cecil Salva Condo – Park McKinley West",client:"Cecil Salva",location:"Park McKinley West, Tower D 20L, BGC, Taguig"}],
+      [/jazzy/i,{name:"Jazzy Cow",client:"Joey Garcia",location:""}],
+      [/tagaytay/i,{name:"Barn by Conti's Tagaytay – Design",client:"Eight8ate Holdings",location:"Laurel, Tagaytay"}],
+      [/pascual/i,{name:"Dr. Pascual Residence – Iba",client:"Dr. Pascual",location:"Iba, Zambales"}],
+      [/practi[cs]e/i,{name:"Practice – Design team",client:"Practice only – not a real project",location:"",practice:true}]];
+    const phases=DEF_PHASES.split("\n").map(l=>l.trim()).filter(Boolean).map((l,pi)=>{const k=l.indexOf(":");const name=(k>0?l.slice(0,k):"Phase "+(pi+1)).trim();const ds=(k>0?l.slice(k+1):l).split(";").map(x=>x.trim()).filter(Boolean);return {name,deliverables:ds.map((x,j)=>({id:`p${pi+1}d${j+1}`,name:x}))}});
+    const pays=DEF_PAYS.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{const [lab,pct,when]=l.split("|").map(x=>(x||"").trim());const w=(when||"").toLowerCase();return {label:lab,pct:+String(pct).replace("%","")||0,amt:0,...(w.startsWith("accept")||w==="0"?{trigger:"acceptance"}:{phase:Math.max(0,(+w||1)-1)})}});
+    const added=[];
+    for(const [re,p] of L){if(Object.values(PROJS).some(c=>c&&re.test(c.name||"")))continue;
+      const nid=safeId(p.name.toLowerCase());const now=Date.now();
+      const doc_={...p,type:"design",start:"",turnover:"",shifts:"day",deliv:0,design:{quoteNo:"",total:0,gfa:0,revLimit:4,visitLimit:12,phases,payments:pays},createdAt:now,updatedAt:now};
+      await db.collection("projects").doc(nid).set(doc_);added.push(p.name)}
+    await db.doc("meta/dseed26").set({at:Date.now(),added});
+    if(added.length)toast("Added to Design: "+added.join(", "))}catch(e){DSEED_RUN=false}}
+function dStartBox(){const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--accent,#1b7190)"},el("div",{style:"font-weight:800;font-size:17px;margin-bottom:6px",text:"How to use it – step by step, for every project"}));
   const go=(k,t)=>el("button",{class:"btn",text:t,onclick:()=>{dSub=k;renderDesignStudio()}});
-  [["1","Check your project is in ② Projects. New project? Ask AAT to add it there.",go("overview","Open ② Projects")],
-   ["2","In ③ Floor plan & walls choose the project at the top, upload the floor plan and add every wall with its code (e.g. LIV-W1).",go("walls","Open ③ Floor plan & walls")],
-   ["3","Open each wall: assign the 6 stages, upload the photo / render, fill in the 📋 Wall form, then Save + send to Joma for check.",null],
-   ["4","Joma checks → 🚀 Release → 🖨 Worker pack + PM pack. Before anything goes out, ④ Item list must be green.",go("items","Open ④ Item list")],
-   ["5","Every day by 4:45 PM: ⑤ daily report with screenshots.",go("myday","Open ⑤ Daily report")]].forEach(([n,t,btn])=>
+  [["1","AAT adds the project and fills in its 📋 Scope of works (areas, drawings needed, deadline).",null],
+   ["2","① Floor plan & walls: choose the project at the top, read the scope, + Add floor plan for every floor, then + Add a wall for every wall with its code (e.g. LIV-W1).",go("walls","Open ① Floor plan & walls")],
+   ["3","⚡ Auto-plan (Joma, Miguel or AAT) shares the walls and sets the due dates. Your work then shows on the Design menu under YOUR WORK.",go("plan","Open ⚡ Auto-plan")],
+   ["4","Open each wall: upload the photo / render, fill in the 📋 Wall form, Save + send to Joma for check.",null],
+   ["5","Joma checks → ✅ Approve for Fabrication → 🖨 Worker pack + PM pack. ② Item list – For Fabrication must be green first.",go("items","Open ② Item list")],
+   ["6","Every day by 4:45 PM: ③ Daily report with screenshots.",go("myday","Open ③ Daily report")]].forEach(([n,t,btn])=>
     b.append(el("div",{style:"display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px dashed var(--line)"},el("span",{class:"tag",style:"min-width:26px;text-align:center;font-weight:800",text:n}),el("div",{style:"flex:1"},el("div",{text:t}),btn?el("div",{class:"opts",style:"margin:4px 0 0"},btn):""))));
   return b}
 function dPracticeBox(){const pr=Object.entries(PROJS).find(([,c])=>c&&!c.closed&&/practi[cs]e/i.test(c.name||""));
   const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid #8e44ad"},el("div",{style:"font-weight:800;font-size:16px;margin-bottom:4px",text:"🧪 Practice – try it here first"}));
-  if(pr){b.append(el("div",{class:"small",text:`Use the project “${pr[1].name}” to try everything: add a wall, fill in the wall form, send it for check, release, print the packs. Nothing in it is real. AAT deletes it when the team is ready.`}),
+  if(pr){b.append(el("div",{class:"small",text:`Use the project “${pr[1].name}” to try everything: add a wall, fill in the wall form, send it for check, approve for fabrication, print the packs. Nothing in it is real. AAT deletes it when the team is ready.`}),
     el("div",{class:"opts"},el("button",{class:"btn main",text:"Practise in "+pr[1].name,onclick:()=>{WP=pr[0];WPLAN=null;WOPEN=null;try{localStorage.setItem("silong-wproj",WP)}catch(e){}dSub="walls";renderDesignStudio()}})))}
-  else b.append(el("div",{class:"small",text:"No Practice project yet. AAT: in ② Projects press + Add a design project and call it “Practice – Design team”. It will then show here with a Practise button."}),
-    ROLE==="gm"?el("div",{class:"opts"},el("button",{class:"btn",text:"Go to ② Projects",onclick:()=>{dSub="overview";renderDesignStudio()}})):"");
+  else b.append(el("div",{class:"small",text:"No Practice project yet. It is added automatically the next time AAT opens the Hub. It will then show here with a Practise button."}),
+    "");
   return b}
 async function renderDesignStudio(){
-  if(!renderDesignStudio._i){renderDesignStudio._i=1;if(dSub==="overview")dSub="path"}
+  if(!renderDesignStudio._i){renderDesignStudio._i=1;dSub="menu"}
   const my=++RSEQ;const v=$("#view");v.replaceChildren();
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to use Design."}));return}
   const DPs=Object.entries(PROJS).filter(([,c])=>isDesignProj(c));
   v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Design team"}),el("div",{class:"dsub2",text:`${DPs.length} design project${DPs.length===1?"":"s"} · Project Architect + Architect Apprentices`})));
-  const SUBS=[["path","① Start here"],["overview","② Projects"],["walls","③ Floor plan & walls"],["items","④ Item list & release"],["myday",DESIGN_ROLES.includes(ROLE)?"⑤ My daily report":"⑤ Daily reports"]];
-  const MORE=[["team","By person"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
-  if(MORE.some(([k])=>k===dSub))DMORE=true;
-  v.append(el("div",{class:"opts subnav"},...SUBS.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}})),
-    el("button",{class:"opt mid","aria-pressed":DMORE?"true":"false",text:DMORE?"More ▴":"More ▾",onclick:()=>{DMORE=!DMORE;renderDesignStudio()}})));
-  if(DMORE)v.append(el("div",{class:"opts subnav dmore"},...MORE.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}}))));
-  if(DINTRO[dSub])v.append(el("div",{class:"dintro"},el("b",{text:DINTRO[dSub][0]+" – "}),DINTRO[dSub][1]));
-  if(["path","walls","items","team","myday"].includes(dSub)){if(dSub==="path")await renderDesignPath(v,my);else if(dSub==="walls")await renderWalls(v,my);else if(dSub==="items")await renderItemList(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
+  if(dSub==="menu"){await dMenuRender(v,my);return}
+  {const it=DALL().find(([k])=>k===dSub)||[dSub,dSub,""];const intro=DINTRO[dSub];
+   v.append(el("div",{class:"dsec"},el("button",{class:"btn",text:"‹ Design menu",onclick:()=>{dSub="menu";renderDesignStudio()}}),
+     el("div",{class:"dsect"},el("div",{class:"dsecn",text:it[1]}),el("div",{class:"dsecd",text:intro?intro[1]:it[2]}))))}
+  if(["path","help","walls","items","team","myday","plan"].includes(dSub)){if(dSub==="plan"){await renderAutoPlan(v,my);return}if(dSub==="path"||dSub==="help")await renderDesignPath(v,my);else if(dSub==="walls")await renderWalls(v,my);else if(dSub==="items")await renderItemList(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
   if(dSub!=="overview"){if(!DP||!isDesignProj(PROJS[DP]))DP=(DPs[0]||[])[0]||null;if(!DP){v.append(el("p",{class:"empty",text:"No design projects yet."}));return}
     const ps=el("select",{class:"fin","aria-label":"Design project"},...DPs.map(([id,c])=>el("option",{value:id,text:"Design project: "+c.name})));ps.value=DP;ps.onchange=()=>{DP=ps.value;try{localStorage.setItem("silong-dproj",DP)}catch(e){}renderDesignStudio()};v.append(el("div",{class:"form"},ps));
     const D_=await loadDesign(DP);if(my!==RSEQ)return;DDEL=D_.dd;DREP=D_.dr;DINS=D_.di;DVIS=D_.dv;DREV=D_.drev;DPAY=D_.dp;PHPROJ=DP}
@@ -4213,7 +4353,7 @@ const WSTG=[["d3","3D detail"],["line","Line drawings"],["cd","Construction draw
 const DREP_DUE="16:45", DREP_REMIND="16:30";
 let WP=null, WPLANS={}, WALLS={}, WPLAN=null, WZOOM=1, WPICK=null, WOPEN=null;
 try{WP=localStorage.getItem("silong-wproj")}catch(e){}
-const canWalls=()=>ROLE==="gm"||ROLE==="arch";
+const canWalls=()=>ROLE==="gm"||ROLE==="arch"||ROLE==="head";
 const DESIGN_ROLES=["arch","appr"];
 const designers=()=>Object.entries(ACCESS).filter(([,a])=>a&&DESIGN_ROLES.includes(a.role)).map(([id,a])=>({id,name:a.name||pname(id),role:a.role})).sort((a,b)=>(a.role===b.role?a.name.localeCompare(b.name):a.role==="arch"?-1:1));
 const wallProjs=()=>Object.entries(PROJS).filter(([,c])=>c&&c.name&&!c.closed&&c.type!=="mnt"&&c.type!=="maintenance").sort((a,b)=>a[1].name.localeCompare(b[1].name));
@@ -4255,8 +4395,9 @@ async function renderWalls(v,my){
   if(!WPLAN||!WPLANS[WPLAN])WPLAN=(PL[0]||[])[0]||null;
   const can=canWalls();
   // plan upload
-  if(can){const up=el("details",{class:"panel grp"},el("summary",{},el("b",{text:PL.length?"+ Add another floor plan (e.g. 2nd floor)":"+ Upload the floor plan"})));if(!PL.length)up.open=true;
-    const nm=el("input",{class:"fin",placeholder:"Name, e.g. Ground floor",value:PL.length?"":"Ground floor","aria-label":"Plan name"});
+  CURSCOPE=scopeOf(WP);v.append(scopeBox(WP));
+  if(can){const up=el("details",{class:"panel grp"},el("summary",{},el("span",{class:"btn main",text:"+ Add floor plan"}),el("span",{class:"small",style:"margin-left:8px",text:PL.length?`${PL.length} uploaded – add the next one: 2nd floor, roof deck, outside…`:"start with the ground floor"})));if(!PL.length)up.open=true;
+    const nm=el("input",{class:"fin",placeholder:"Name, e.g. Ground floor, 2nd floor, Outside",value:PL.length?"":"Ground floor","aria-label":"Plan name"});
     const pg=el("input",{class:"fin n",type:"number",min:"1",value:"1","aria-label":"PDF page"});
     const fi=el("input",{type:"file",accept:"application/pdf,image/*","aria-label":"Floor plan file"});const st=el("div",{class:"small"});
     up.append(el("p",{class:"hint",text:"Export the plan from AutoCAD as a PDF (or a JPG). Put the wall codes on the drawing first, e.g. KIT-W1, so the plan, the 3D scenes and the Hub all use the same names."}),
@@ -4304,6 +4445,7 @@ function wallList(planId){
       WSTG.forEach(([k,lab])=>{const x=stOf(w,k);const sp=stPct(x);const lt=x.due&&x.due<td&&sp<100;
         d.append(el("div",{class:"wst"},el("b",{text:lab}),el("span",{class:"small",text:[x.who?pname(x.who):"not assigned",x.due?"due "+fd(x.due):"",x.na?"not needed":x.auto?"✓ wall form checked":x.done?"✓ done":sp+"%"].filter(Boolean).join(" · ")}),lt?el("span",{class:"tag due",text:"late"}):""))});
       if(w.note)d.append(el("div",{class:"small",text:"📝 "+w.note}));
+      if(!inScope(CURSCOPE,w.area))d.append(el("div",{class:"wfgap",text:"⚠ This area is not in the scope of works – check with AAT before drawing (possible extra work to bill)."}));
       d.append(wfCardBox(id,w));
       if(can)d.append(el("div",{class:"opts"},el("button",{class:"btn",text:"✏️ Edit / assign",onclick:()=>openWallForm(id)}),
         planId?el("button",{class:"btn",text:"📍 Move pin",onclick:()=>{WPICK=id;WPLAN=planId;toast("Now tap the new spot on the plan.");const b=document.querySelector(".wplanbox");if(b)b.scrollIntoView({behavior:"smooth",block:"center"})}}):"",
@@ -4347,7 +4489,7 @@ const WF_ST={draft:"Draft",check:"Waiting for Joma's check",ok:"Checked"};
 let WFOPEN=null, WFEDIT=null, ILBY="";
 const wfOf=w=>(w&&w.form)||{};
 const canWallForm=()=>canWalls()||DESIGN_ROLES.includes(ROLE);
-const canWallCheck=()=>ROLE==="gm"||ROLE==="arch";
+const canWallCheck=()=>ROLE==="gm"||ROLE==="arch"||ROLE==="head";
 function wfGaps(f){const G=[];const I=f.items||[];
   if(!I.length)G.push("no items");
   I.forEach(x=>{const miss=[];if(!x.item)miss.push("name");if(!x.by)miss.push("made by");if(x.by!=="Client supply"&&!(+x.w&&+x.h))miss.push("size");if(!x.dwg&&x.by!=="Client supply")miss.push("drawing");if(miss.length)G.push(`${x.code||"item"}: ${miss.join(", ")}`)});
@@ -4385,23 +4527,23 @@ function wfCardBox(id,w){const f=wfOf(w);const I=f.items||[],Pn=f.pts||[];const 
   return d}
 const canRelease=()=>["gm","arch","head"].includes(ROLE);
 function wfRelBox(id,w,f,G){const st=f.status||"";const r=f.rel;const box=el("div",{class:"wfrel"});
-  if(r){box.classList.add("on");box.append(el("b",{text:`🚀 Released ${new Date(r.at).toLocaleDateString("en-PH",{day:"numeric",month:"short"})} by ${pname(r.by)}`}),el("div",{class:"small",text:`To: ${(r.to||[]).join(", ")||"–"} · ${(r.items||[]).length} items${r.note?" · "+r.note:""}`}));return box}
-  if(f.relOld)box.append(el("div",{class:"wfgap",text:`⚠ Changed after it was released on ${new Date(f.relOld.at).toLocaleDateString("en-PH",{day:"numeric",month:"short"})} – release again and tell the workshop what changed.`}));
+  if(r){box.classList.add("on");box.append(el("b",{text:`✅ Approved for Fabrication ${new Date(r.at).toLocaleDateString("en-PH",{day:"numeric",month:"short"})} by ${pname(r.by)}`}),el("div",{class:"small",text:`To: ${(r.to||[]).join(", ")||"–"} · ${(r.items||[]).length} items${r.note?" · "+r.note:""}`}));return box}
+  if(f.relOld)box.append(el("div",{class:"wfgap",text:`⚠ Changed after it was approved for fabrication on ${new Date(f.relOld.at).toLocaleDateString("en-PH",{day:"numeric",month:"short"})} – approve again and tell the workshop what changed.`}));
   const why=st!=="ok"?"the wall form is checked by a second person":G.length?"nothing is missing: "+G.slice(0,4).join(" · ")+(G.length>4?" …":""):"";
-  if(why){box.append(el("div",{class:"small"},el("b",{text:"🔒 Release locked"})," – unlocks when "+why));return box}
-  if(!canRelease()){box.append(el("div",{class:"small",text:"✅ Ready to release – Joma, the Head of PMs or AAT releases it."}));return box}
+  if(why){box.append(el("div",{class:"small"},el("b",{text:"🔒 Approval locked"})," – unlocks when "+why));return box}
+  if(!canRelease()){box.append(el("div",{class:"small",text:"✅ Ready – Joma, the Head of PMs or AAT approves it for fabrication."}));return box}
   const bys=[...new Set((f.items||[]).map(x=>x.by).filter(b=>b&&b!=="Client supply"))];
   const cks=bys.map(b=>{const c=el("input",{type:"checkbox"});c.checked=true;return [b,c]});
   const nt=el("input",{class:"fin",placeholder:"Note for Purchasing / workshop (optional)","aria-label":"Release note"});
-  box.append(el("b",{text:"✅ Ready to release"}),el("div",{class:"small",text:"Tick who gets the drawings. Purchasing and the Head of PMs get a message."}),
+  box.append(el("b",{text:"✅ Ready – Approve for Fabrication"}),el("div",{class:"small",text:"Tick who gets the drawings. Purchasing and the Head of PMs get a message."}),
     el("div",{class:"form"},...cks.map(([b,c])=>el("label",{class:"small"},c," "+b)),nt),
-    el("button",{class:"btn main",text:"🚀 Release to workshop / fabricator",onclick:async e=>{const to=cks.filter(([,c])=>c.checked).map(([b])=>b);if(!to.length){toast("Tick at least one.");return}
-      if(!confirm(`Release ${w.code} (${(f.items||[]).length} items) to ${to.join(", ")}?`))return;e.target.disabled=true;
+    el("button",{class:"btn main",text:"✅ Approve for Fabrication",onclick:async e=>{const to=cks.filter(([,c])=>c.checked).map(([b])=>b);if(!to.length){toast("Tick at least one.");return}
+      if(!confirm(`Approve ${w.code} for fabrication (${(f.items||[]).length} items) – send to ${to.join(", ")}?`))return;e.target.disabled=true;
       const items=(f.items||[]).filter(x=>to.includes(x.by)).map(x=>x.code);const rel={at:Date.now(),by:ME,to,note:nt.value.trim(),items};
       try{await db.collection(dcol(WP,"dwalls")).doc(id).update({form:{...f,rel,rels:[...(f.rels||[]),rel],relOld:null}});
-        try{await db.collection("messages").doc("m"+Date.now()).set({project:WP,projName:projName(WP),type:"update",to:"buy",toAll:["head"],from:ROLE,fromId:ME,subject:`Released for fabrication – ${w.code}${w.name?" "+w.name:""}`,
+        try{await db.collection("messages").doc("m"+Date.now()).set({project:WP,projName:projName(WP),type:"update",to:"buy",toAll:["head"],from:ROLE,fromId:ME,subject:`Approved for Fabrication – ${w.code}${w.name?" "+w.name:""}`,
           body:`${(f.items||[]).filter(x=>to.includes(x.by)).map(x=>`${x.code} · ${x.item||""} · ${wfSize(x)} · ${x.by} · ${x.dwg||""}`).join("\n")}${rel.note?"\nNote: "+rel.note:""}\nSee Design → Item list.`,status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()})}catch(_){}
-        toast("Released – Purchasing has a message.");renderDesignStudio()}catch(er){toast("Not saved.");e.target.disabled=false}}}));
+        toast("Approved for Fabrication – Purchasing has a message.");renderDesignStudio()}catch(er){toast("Not saved.");e.target.disabled=false}}}));
   return box}
 function wfTable(H,R){return el("div",{class:"gwrap"},el("table",{class:"wft"},el("tr",{},...H.map(h=>el("th",{text:h}))),...R.map(r=>el("tr",{},...r.map(c=>el("td",{text:c==null||c===""?"–":String(c)}))))))}
 function wfRows(title,hint,defs,rows,mk){
@@ -4439,7 +4581,7 @@ function wfEditor(id,w){const f=wfOf(w);const code=(w.code||"W").toUpperCase();c
   const save=async(e,status)=>{const items=ITM.get(),pts=PTS.get();
     const seen={};for(const x of [...items,...pts]){const k=(x.code||"").toUpperCase();if(!k){toast("Every item and point needs a code.");return}if(seen[k]){toast(k+" is used twice.");return}seen[k]=1}
     pts.forEach(p=>{const t=(p.code||"")[0];if(!p.t&&WF_TRADES.some(x=>x[0]===t))p.t=t});
-    if(f.rel&&!confirm("This wall was already RELEASED to the workshop / fabricator. Saving changes cancels the release – it must be checked and released again, and you must tell the workshop what changed. Continue?"))return;
+    if(f.rel&&!confirm("This wall was already APPROVED FOR FABRICATION. Saving changes cancels the approval – it must be checked and approved again, and you must tell the workshop what changed. Continue?"))return;
     if(!f.rel&&f.status==="ok"&&!confirm("This wall form was already checked. Saving changes sends it back for checking. Continue?"))return;
     const nf={len:+len.value||"",ht:+ht.value||"",dwg:dwg.value.trim(),fin:FIN.get(),items:items.map(x=>({...x,code:x.code.toUpperCase()})),pts:pts.map(x=>({...x,code:x.code.toUpperCase()})),conf:CNF.get(),
       status,updatedAt:Date.now(),by:ME,checkedBy:null,checkedAt:null,backNote:status==="check"?"":(f.backNote||""),rel:null,rels:f.rels||[],relOld:f.rel||f.relOld||null};
@@ -4463,8 +4605,8 @@ async function renderItemList(v,my){
   const noForm=W.filter(([,w])=>!wfOf(w).status),notOk=W.filter(([,w])=>wfOf(w).status&&wfOf(w).status!=="ok");
   const noDwg=I.filter(x=>!x.dwg&&x.by!=="Client supply"),noBy=I.filter(x=>!x.by);
   const ready=!noForm.length&&!notOk.length&&!noDwg.length&&!noBy.length&&I.length>0;
-  v.append(el("div",{class:"panel "+(ready?"wfready":"wfnot")},el("b",{text:ready?"✓ Every wall checked, every item has a drawing":"Not ready to release yet"}),
-    el("div",{class:"small",text:`${W.length} walls · ${I.length} items · ${Pt.length} rough-ins · ${W.filter(([,w])=>wfOf(w).rel).length} wall${W.filter(([,w])=>wfOf(w).rel).length===1?"":"s"} released`}),
+  v.append(el("div",{class:"panel "+(ready?"wfready":"wfnot")},el("b",{text:ready?"✓ Every wall checked, every item has a drawing":"Not ready for fabrication yet"}),
+    el("div",{class:"small",text:`${W.length} walls · ${I.length} items · ${Pt.length} rough-ins · ${W.filter(([,w])=>wfOf(w).rel).length} wall${W.filter(([,w])=>wfOf(w).rel).length===1?"":"s"} approved for fabrication`}),
     noForm.length?el("div",{class:"small",text:`⚠ ${noForm.length} wall${noForm.length===1?"":"s"} without a wall form: ${noForm.map(([,w])=>w.code).join(", ")}`}):"",
     notOk.length?el("div",{class:"small",text:`⚠ ${notOk.length} wall form${notOk.length===1?"":"s"} not checked yet: ${notOk.map(([,w])=>w.code).join(", ")}`}):"",
     noDwg.length?el("div",{class:"small",text:`⚠ ${noDwg.length} item${noDwg.length===1?"":"s"} with no drawing: ${noDwg.map(x=>x.code).slice(0,15).join(", ")}${noDwg.length>15?" …":""}`}):"",
@@ -4474,8 +4616,8 @@ async function renderItemList(v,my){
   const L=I.filter(x=>!ILBY||(x.by||"Not set")===ILBY);
   const txt=()=>[`ITEM LIST – ${projName(WP)}${ILBY?" – "+ILBY:""}`,...L.map(x=>`${x.code} · ${x.item||""} · ${wfSize(x)} · ${x.finish||""} · ${x.by||"made by ?"} · ${x.dwg||(x.by==="Client supply"?"client supply":"NO DRAWING")}`)].join("\n");
   v.append(sec("Item list",String(L.length),"Every item from every wall form. Purchasing and the workshop work from this list – an item with no drawing does not get made.",
-    el("div",{class:"form"},fsel,el("button",{class:"btn",text:"Copy list",onclick:()=>copyText(txt())}),el("button",{class:"btn",text:"🖨 PM pack – whole project",onclick:()=>pkPM(W.map(([id])=>id))}),el("button",{class:"btn",text:"🖨 Worker packs – released walls",onclick:()=>{const ids=W.filter(([,w])=>wfOf(w).rel).map(([id])=>id);if(!ids.length){toast("No wall is released yet.");return}pkWorker(ids)}})),
-    L.length?wfTable(["Wall","Code","Item","W × H × D","Finish","Made by","Drawing","Wall form","Released"],L.map(x=>[x.wall,x.code,x.item,wfSize(x),x.finish,x.by||"⚠ not set",x.dwg||(x.by==="Client supply"?"–":"⚠ none"),WF_ST[x.st]||"–",x.rel?new Date(x.rel).toLocaleDateString("en-PH",{day:"numeric",month:"short"}):x.chg?"⚠ changed – release again":x.by==="Client supply"?"–":"🔒 not yet"])):el("p",{class:"empty",text:"No items yet."})));
+    el("div",{class:"form"},fsel,el("button",{class:"btn",text:"Copy list",onclick:()=>copyText(txt())}),el("button",{class:"btn",text:"🖨 PM pack – whole project",onclick:()=>pkPM(W.map(([id])=>id))}),el("button",{class:"btn",text:"🖨 Worker packs – approved walls",onclick:()=>{const ids=W.filter(([,w])=>wfOf(w).rel).map(([id])=>id);if(!ids.length){toast("No wall is approved for fabrication yet.");return}pkWorker(ids)}})),
+    L.length?wfTable(["Wall","Code","Item","W × H × D","Finish","Made by","Drawing","Wall form","Approved for fab."],L.map(x=>[x.wall,x.code,x.item,wfSize(x),x.finish,x.by||"⚠ not set",x.dwg||(x.by==="Client supply"?"–":"⚠ none"),WF_ST[x.st]||"–",x.rel?new Date(x.rel).toLocaleDateString("en-PH",{day:"numeric",month:"short"}):x.chg?"⚠ changed – approve again":x.by==="Client supply"?"–":"🔒 not yet"])):el("p",{class:"empty",text:"No items yet."})));
   if(Pt.length){const G={};Pt.forEach(p=>{const t=(WF_TRADES.find(x=>x[0]===p.t)||["O","Other"])[1];(G[t]=G[t]||[]).push(p)});
     v.append(sec("Rough-ins by trade",String(Pt.length),"For the electrician and plumber: height from the finished floor, distance from the left corner of the wall.",
       ...Object.entries(G).map(([t,L_])=>el("div",{},el("h3",{class:"warea",text:t}),wfTable(["Wall","Code","Point","Height","From left","Note"],L_.map(x=>[x.wall,x.code,x.point,x.h!==""?fmtMM(+x.h):"⚠",x.x!==""?fmtMM(+x.x):"⚠",x.note]))))))}
@@ -4507,7 +4649,7 @@ function pkElev(f,items,pts){
   g+=`<text x="${L/2}" y="${-fs*0.6}" font-size="${fs*0.9}" text-anchor="middle">${fmtMM(L)} wall length · ${fmtMM(H)} height</text>`;
   return `<svg viewBox="${-m} ${-m} ${L+2*m} ${H+2*m}" preserveAspectRatio="xMidYMid meet">${g}</svg>`}
 function pkTable(H,R,cls){return `<table class="${cls||""}"><tr>${H.map(h=>`<th>${pkEsc(h)}</th>`).join("")}</tr>${R.map(r=>`<tr>${r.map(c=>`<td>${pkEsc(c===""||c==null?"–":c)}</td>`).join("")}</tr>`).join("")}</table>`}
-function pkStamp(f){return f.rel?`<div class="stamp ok">RELEASED ${pkDate(f.rel.at)} · OK TO BUILD</div>`:`<div class="stamp no">NOT RELEASED – DO NOT BUILD OR FABRICATE</div>`}
+function pkStamp(f){return f.rel?`<div class="stamp ok">APPROVED FOR FABRICATION ${pkDate(f.rel.at)} · OK TO BUILD</div>`:`<div class="stamp no">NOT YET APPROVED – DO NOT BUILD OR FABRICATE</div>`}
 function pkHead(proj,w,title,f){return `<div class="hd"><img src="${LOGO_DOC}" alt="Silong"><div class="ht"><div class="pj">${pkEsc(proj)}</div><div class="wl">${pkEsc(w.code||"")} · ${pkEsc(w.name||"")}${w.area?" · "+pkEsc(w.area):""}</div><div class="tt">${pkEsc(title)}</div></div>${f?pkStamp(f):""}</div>`}
 function pkKey(w){const P_=w&&w.plan&&WPLANS[w.plan];if(!P_||w.x==null||!P_.img)return `<div class="none">Key plan: this wall is not pinned on a floor plan yet.</div>`;
   const W_=P_.w||1000,H_=P_.h||700,r=Math.max(W_,H_)/28,cx=w.x*W_,cy=w.y*H_;
@@ -4524,7 +4666,7 @@ function pkWorkerPages(proj,w){const f=wfOf(w);const out=[];
   if((f.fin||[]).length)out.push(pkHead(proj,w,"WORKER PACK – FINISHES",f)+pkVis(w)+pkTable(["Code","Where","Finish","Done by"],f.fin.map(x=>[x.code,x.where,x.finish,x.by]),"big")+pkConf(f)+PK_FOOT);
   return out}
 function pkPMPage(proj,w){const f=wfOf(w);const G=wfGaps(f);
-  return pkHead(proj,w,"PM PACK – FULL WALL",f)+`<div class="meta">Wall form: <b>${pkEsc(WF_ST[f.status]||"not filled in")}</b>${f.checkedBy?" · checked by "+pkEsc(pname(f.checkedBy))+" "+pkDate(f.checkedAt):""}${f.rel?" · released by "+pkEsc(pname(f.rel.by))+" to "+pkEsc((f.rel.to||[]).join(", ")):""}${f.dwg?" · drawing "+pkEsc(f.dwg):""}</div>`+
+  return pkHead(proj,w,"PM PACK – FULL WALL",f)+`<div class="meta">Wall form: <b>${pkEsc(WF_ST[f.status]||"not filled in")}</b>${f.checkedBy?" · checked by "+pkEsc(pname(f.checkedBy))+" "+pkDate(f.checkedAt):""}${f.rel?" · approved for fabrication by "+pkEsc(pname(f.rel.by))+" to "+pkEsc((f.rel.to||[]).join(", ")):""}${f.dwg?" · drawing "+pkEsc(f.dwg):""}</div>`+
     pkVis(w,true)+`<div class="el sm">${pkElev(f,(f.items||[]).filter(x=>x.by!=="Client supply"),f.pts||[])}</div>`+
     ((f.items||[]).length?pkTable(["Code","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],f.items.map(x=>[x.code,x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg])):"")+
     ((f.pts||[]).length?pkTable(["Code","Point","Height","From left","Trade","Note"],f.pts.map(p=>[p.code,p.point,p.h!==""?fmtMM(+p.h):"⚠",p.x!==""?fmtMM(+p.x):"⚠",(WF_TRADES.find(t=>t[0]===p.t)||["","–"])[1],p.note])):"")+
@@ -4569,7 +4711,7 @@ function a3Title(S,proj,w,f,title,dwg,sheet,scale,notes){const X=332;S.rect(10,1
   lab("wall",y);S.text(X+3,y+5,`${w.code||""}`,5,"start",800);S.text(X+3,y+9,`${(w.name||"").slice(0,32)}${w.area?" · "+w.area:""}`.slice(0,40),2.4);y+=13;S.line(X,y,410,y,"#111",0.2);y+=4;
   lab("sheet title",y);title.forEach((l,i)=>S.text(X+3,y+4.5+i*4,l,3,"start",700));y+=6+4*title.length;S.line(X,y,410,y,"#111",0.2);y+=4;
   const ok=!!f.rel;S.rect(X+3,y,72,11,ok?"#e8f5e9":"#fdecea",ok?"#2e7d32":A3C.red,0.6,'rx="1"');
-  S.text(X+39,y+4.6,ok?`RELEASED ${pkDate(f.rel.at).toUpperCase()}`:"NOT RELEASED",3,"middle",800,ok?"#2e7d32":A3C.red);S.text(X+39,y+8.8,ok?"OK TO BUILD":"DO NOT BUILD OR FABRICATE",2.3,"middle",700,ok?"#2e7d32":A3C.red);y+=15;
+  S.text(X+39,y+4.6,ok?`APPROVED ${pkDate(f.rel.at).toUpperCase()}`:"NOT YET APPROVED",3,"middle",800,ok?"#2e7d32":A3C.red);S.text(X+39,y+8.8,ok?"FOR FABRICATION – OK TO BUILD":"DO NOT BUILD OR FABRICATE",2.3,"middle",700,ok?"#2e7d32":A3C.red);y+=15;
   lab("notes",y);y+=3.8;(notes||[]).forEach(l=>{S.text(X+3,y,l,2.1,"start",400,l.startsWith("⚠")?A3C.red:"#111");y+=3})
   const yb=232;S.line(X,yb,410,yb,"#111",0.3);S.line(X+52,yb,X+52,287,"#111",0.2);
   lab("drawing no.",yb+4);S.text(X+3,yb+11.5,dwg,4.2,"start",800);S.text(X+55,yb+4,"S H E E T",1.7,"start",400,"#777");S.text(X+55,yb+11.5,sheet,4.2,"start",800);
@@ -4634,8 +4776,8 @@ function a3Open(title,svgs){if(!svgs.length){toast("Nothing to print yet – fil
   const w=window.open("","_blank");if(w){w.document.write(html);w.document.close()}else toast("Allow pop-ups to print.")}
 function pkWorker(ids){const proj=projName(WP);const P=[];ids.forEach(id=>{const w=WALLS[id];if(w&&wfOf(w).status)P.push(...a3Sheets(proj,w))});a3Open("Worker pack – "+proj,P)}
 function pkPM(ids){const proj=projName(WP);const W=ids.map(id=>[id,WALLS[id]]).filter(([,w])=>w);
-  const cover=`<div class="cv">${pkHead(proj,{code:"PM PACK",name:"all walls"},"Wall forms, items, rough-ins and release status",null)}<h1>${pkEsc(proj)}</h1>`+
-    pkTable(["Wall","Name","Area","Wall form","Released","Items","Rough-ins","Missing"],W.map(([,w])=>{const f=wfOf(w);return [w.code,w.name,w.area,WF_ST[f.status]||"not filled in",f.rel?pkDate(f.rel.at):f.relOld?"changed – release again":"not yet",(f.items||[]).length,(f.pts||[]).length,f.status?wfGaps(f).length:"–"]}))+`<div class="meta">Printed ${pkDate(Date.now())} from Silong Hub.</div></div>`;
+  const cover=`<div class="cv">${pkHead(proj,{code:"PM PACK",name:"all walls"},"Wall forms, items, rough-ins and approval status",null)}<h1>${pkEsc(proj)}</h1>`+
+    pkTable(["Wall","Name","Area","Wall form","Approved for fab.","Items","Rough-ins","Missing"],W.map(([,w])=>{const f=wfOf(w);return [w.code,w.name,w.area,WF_ST[f.status]||"not filled in",f.rel?pkDate(f.rel.at):f.relOld?"changed – approve again":"not yet",(f.items||[]).length,(f.pts||[]).length,f.status?wfGaps(f).length:"–"]}))+`<div class="meta">Printed ${pkDate(Date.now())} from Silong Hub.</div></div>`;
   pkOpen("PM pack – "+proj,[cover,...W.filter(([,w])=>wfOf(w).status).map(([,w])=>pkPMPage(proj,w))],false)}
 // ---- by person ----
 async function renderTeam(v,my){
@@ -5633,7 +5775,8 @@ function revsView(S){
   const byPh={};L.forEach(([,r])=>{if(r.major){const d=S.L.find(z=>z.id===r.deliv);const k=d?d.phase:"Other";byPh[k]=(byPh[k]||0)+1}});
   const dl=el("select",{class:"fin","aria-label":"Deliverable"},...S.L.map(x=>el("option",{value:x.id,text:`${x.phase}: ${x.name}`})));const mj=el("select",{class:"fin","aria-label":"Major or minor"},el("option",{value:"minor",text:"Minor revision"}),el("option",{value:"major",text:"Major revision"}));
   const rq=el("input",{class:"fin",placeholder:"Requested by","aria-label":"Requested by"}),dt=el("input",{class:"fin",type:"date","aria-label":"Date"});dt.value=iso(new Date());const ds=el("textarea",{placeholder:"What the client asked to change"});
-  out.push(sec("Revisions",`major used: ${Object.entries(byPh).map(([k,n])=>`${k} ${n}/${lim}`).join(" · ")||"none"}`,`The quote allows unlimited minor revisions and up to ${lim} major revisions per phase. Beyond that, it's a paid change – tell the AAT-Gen Manager.`,
+  out.push(sec("Revisions",`major used: ${Object.entries(byPh).map(([k,n])=>`${k} ${n}/${lim}`).join(" · ")||"none"}`,`MINOR (unlimited): the floor plan stays, only things on a wall change. MAJOR (up to ${lim} per phase): the layout changes. COMPLETE REDESIGN: a new concept – tell AAT. Over the limit, AAT gets a message and sends it to Accounts for billing.`,
+    ...(ROLE==="gm"&&Object.values(byPh).some(n=>n>lim)?[el("div",{class:"panel",style:"border-left:5px solid #b3261e"},el("b",{text:"⚠ Over the revision limit: "+Object.entries(byPh).filter(([,n])=>n>lim).map(([k,n])=>`${k} ${n} of ${lim}`).join(" · ")}),el("div",{class:"opts"},el("button",{class:"btn main",text:"💰 Send to Accounts for billing",onclick:async e=>{e.target.disabled=true;try{await db.collection("messages").doc("m"+Date.now()).set({project:DP,projName:DCFG().name,type:"update",to:"acct",from:ROLE,fromId:await myId(),subject:`Bill extra revisions – ${DCFG().name}`,body:`Major revisions over the quote limit (${lim} per phase): `+Object.entries(byPh).filter(([,n])=>n>lim).map(([k,n])=>`${k}: ${n} (${n-lim} extra)`).join("; ")+". Please prepare the billing for the extra revisions and send it to AAT to approve.",status:"open",replies:[],createdAt:Date.now(),updatedAt:Date.now()});toast("Sent to Accounts.")}catch(er){toast("Not sent.");e.target.disabled=false}}})))]:[]),
     el("details",{class:"panel grp"},el("summary",{},el("b",{text:"+ Log a revision request"})),el("div",{class:"form"},dl,mj,rq,el("label",{class:"small fdate"},"Date ",dt)),ds,
       el("button",{class:"btn main",text:"Save",onclick:async()=>{if(!ds.value.trim()){ds.focus();return}const d=S.L.find(z=>z.id===dl.value);const used=(byPh[d?d.phase:"Other"]||0)+(mj.value==="major"?1:0);
         try{await db.collection(dcol(DP,"drevs")).doc("r"+Date.now()).set({deliv:dl.value,major:mj.value==="major",by:rq.value.trim(),date:dt.value,text:ds.value.trim(),at:Date.now()});
@@ -9323,7 +9466,7 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   db.collection("apv").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});const hb=hotCount();APV=n;pingHot(hb);acctBadge();gmBadge();if(tab==="buy"&&BUYOPEN==="b_apl"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderBuy()}catch(e){}if(["acct","gm","home"].includes(tab))refresh("apv")},()=>{});
   db.doc("settings/main").onSnapshot(d=>{SETTINGS=Object.assign({unplannedLimit:5000,creditLines:[{name:"Crown Ace",days:30},{name:"Nordsmaire Hardware",days:30}]},(d&&d.exists&&d.data())||{})},()=>{});
   applyRole();
-  db.collection("projects").onSnapshot(s=>{const n={[BARN]:BARN_CFG};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object"&&x.name&&d.id!==BARN)n[d.id]=x});PROJS=n;fillSelectors();watchAllOrders();setTimeout(()=>{try{seedClark()}catch(e){}},2500);if(!PROJS[P])setProject(BARN);else if(P!==BARN){applyProject()}if(tab==="gm")renderGM();if(tab==="design"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderDesignStudio()},()=>{});
+  db.collection("projects").onSnapshot(s=>{const n={[BARN]:BARN_CFG};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object"&&x.name&&d.id!==BARN)n[d.id]=x});PROJS=n;fillSelectors();watchAllOrders();setTimeout(()=>{try{seedDesignProjects()}catch(e){}},2600);setTimeout(()=>{try{seedDesignMsg()}catch(e){}},4200);setTimeout(()=>{try{seedClark()}catch(e){}},2500);if(!PROJS[P])setProject(BARN);else if(P!==BARN){applyProject()}if(tab==="gm")renderGM();if(tab==="design"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderDesignStudio()},()=>{});
   db.collection("suppliers").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});SUPPLIERS=n},()=>{});
   db.collection("messages").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});MSGS=n;msgBadge();if(tab==="msg"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderMsg();if(tab==="buy")refresh("orders");if(tab==="gm")refresh("gm")},()=>{});
   subscribe();
