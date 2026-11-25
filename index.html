@@ -369,7 +369,7 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
 .wft{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}.wft th,.wft td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}.wft th{font-weight:700;white-space:nowrap}
 .wfgap{margin-top:6px;font-size:13px;color:#b3261e}.wfedit{border:2px solid var(--accent,#1b7190);margin-top:8px}.wfsec{margin-top:12px;padding-top:6px;border-top:1px dashed var(--line)}
 .wfrow{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;padding:6px 0;border-bottom:1px dotted var(--line)}.wff{display:flex;flex-direction:column;font-size:11px;min-width:70px;flex:1 1 90px}.wff .fin{width:100%;flex:none;height:auto;min-height:0}
-.wfready{border-left:5px solid #2e7d32}.wfrel{margin-top:8px;padding:8px 10px;border-radius:10px;background:#f4f4f1;border:1px dashed var(--line)}.wfrel.on{background:#e8f5e9;border:1px solid #2e7d32}.wfnot{border-left:5px solid #b3261e}
+.wfready{border-left:5px solid #2e7d32}.dintro{margin:6px 0 10px;padding:8px 12px;border-radius:10px;background:#f2f6f5;border-left:4px solid #1F6F6B;font-size:14px;line-height:1.45}.subnav.dmore .opt{font-size:13px;opacity:.9}.wfrel{margin-top:8px;padding:8px 10px;border-radius:10px;background:#f4f4f1;border:1px dashed var(--line)}.wfrel.on{background:#e8f5e9;border:1px solid #2e7d32}.wfnot{border-left:5px solid #b3261e}
 .wcard{margin-top:8px}.wcard>summary{display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;padding:4px 0}.wcard>summary::-webkit-details-marker{display:none}.wname{font-weight:700}
 .wst{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-top:1px dashed var(--line)}
 .warea{margin:16px 0 2px;font-size:17px}.wstform{margin-top:10px;padding-top:6px;border-top:1px dashed var(--line)}
@@ -585,7 +585,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-25h"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-26a"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4055,8 +4055,10 @@ async function renderDesignPath(v,my){
     el("li",{text:"Construction drawings (ceiling plan, details…), then MEP, building permit and as-built if the project needs them."}),
     el("li",{text:`Every designer sends the daily report by ${typeof DREP_DUE!=="undefined"?dT12(DREP_DUE):"4:45 PM"}.`})),
     el("p",{class:"small",text:"The AAT-Gen Manager and the Project Architect assign the work. Each person ticks their own step or area when it’s done."}));
+  v.append(dStartBox());
+  v.append(dPracticeBox());
+  { const sb=samplesBox();sb.open=true;v.append(sb); }
   v.append(how);
-  v.append(samplesBox());
   // my work (everyone)
   const T=dfTasks();const mine=T.filter(t=>t.who===ME);
   if(mine.length){const box=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--hivis)"},el("div",{style:"font-weight:700;margin-bottom:4px",text:"👤 Your work, soonest first"}));
@@ -4139,14 +4141,45 @@ async function renderDesignPath(v,my){
     v.append(st)}
 }
 
+let DMORE=false;
+const DINTRO={path:["START HERE","read this first. Follow steps 1 to 5 below, in order. New to this? Practise in the Practice project first – nothing in it is real. The samples to copy and the process guide are further down."],
+  overview:["PROJECTS","every design project and how far it is. Open one to see its deliverables, payments and timeline. AAT adds new projects here with + Add a design project."],
+  walls:["FLOOR PLAN & WALLS","choose the project at the top, upload the floor plan, add every wall with its code, then open each wall: assign the 6 stages and fill in the 📋 Wall form. Joma checks it, then 🚀 Release, then 🖨 print the packs."],
+  items:["ITEM LIST & RELEASE","every item from every wall form of the project. Red box = not ready (walls without a form, forms not checked, items without a drawing). Green = ready. Print the PM pack or the worker packs here."],
+  myday:["DAILY REPORT","send it by 4:45 PM every day: tick the walls you worked on, update the % done, and add screenshots of the actual work."],
+  team:["BY PERSON","what each designer has, what is late, and whether today's report is in."],
+  deliv:["DELIVERABLES & PAYMENTS","the design stages the client pays for, and which ones can be billed."],
+  timeline:["TIMELINE","the design dates for the project."],instr:["CLIENT INSTRUCTIONS","what the client asked for, and whether it is done."],
+  visits:["SITE VISITS","measurements and site visit notes."],revs:["REVISIONS","every revision the client asked for – major ones may be billable."]};
+function dStartBox(){const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid var(--accent,#1b7190)"},el("div",{style:"font-weight:800;font-size:17px;margin-bottom:6px",text:"Where to start – every project"}));
+  const go=(k,t)=>el("button",{class:"btn",text:t,onclick:()=>{dSub=k;renderDesignStudio()}});
+  [["1","Check your project is in ② Projects. New project? Ask AAT to add it there.",go("overview","Open ② Projects")],
+   ["2","In ③ Floor plan & walls choose the project at the top, upload the floor plan and add every wall with its code (e.g. LIV-W1).",go("walls","Open ③ Floor plan & walls")],
+   ["3","Open each wall: assign the 6 stages, upload the photo / render, fill in the 📋 Wall form, then Save + send to Joma for check.",null],
+   ["4","Joma checks → 🚀 Release → 🖨 Worker pack + PM pack. Before anything goes out, ④ Item list must be green.",go("items","Open ④ Item list")],
+   ["5","Every day by 4:45 PM: ⑤ daily report with screenshots.",go("myday","Open ⑤ Daily report")]].forEach(([n,t,btn])=>
+    b.append(el("div",{style:"display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px dashed var(--line)"},el("span",{class:"tag",style:"min-width:26px;text-align:center;font-weight:800",text:n}),el("div",{style:"flex:1"},el("div",{text:t}),btn?el("div",{class:"opts",style:"margin:4px 0 0"},btn):""))));
+  return b}
+function dPracticeBox(){const pr=Object.entries(PROJS).find(([,c])=>c&&!c.closed&&/practi[cs]e/i.test(c.name||""));
+  const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid #8e44ad"},el("div",{style:"font-weight:800;font-size:16px;margin-bottom:4px",text:"🧪 Practice – try it here first"}));
+  if(pr){b.append(el("div",{class:"small",text:`Use the project “${pr[1].name}” to try everything: add a wall, fill in the wall form, send it for check, release, print the packs. Nothing in it is real. AAT deletes it when the team is ready.`}),
+    el("div",{class:"opts"},el("button",{class:"btn main",text:"Practise in "+pr[1].name,onclick:()=>{WP=pr[0];WPLAN=null;WOPEN=null;try{localStorage.setItem("silong-wproj",WP)}catch(e){}dSub="walls";renderDesignStudio()}})))}
+  else b.append(el("div",{class:"small",text:"No Practice project yet. AAT: in ② Projects press + Add a design project and call it “Practice – Design team”. It will then show here with a Practise button."}),
+    ROLE==="gm"?el("div",{class:"opts"},el("button",{class:"btn",text:"Go to ② Projects",onclick:()=>{dSub="overview";renderDesignStudio()}})):"");
+  return b}
 async function renderDesignStudio(){
   if(!renderDesignStudio._i){renderDesignStudio._i=1;if(dSub==="overview")dSub="path"}
   const my=++RSEQ;const v=$("#view");v.replaceChildren();
   if(!db){v.append(el("p",{class:"empty",text:"Sign in to use Design."}));return}
   const DPs=Object.entries(PROJS).filter(([,c])=>isDesignProj(c));
   v.append(el("div",{class:"sumhead"},el("div",{class:"sumt",text:"Design team"}),el("div",{class:"dsub2",text:`${DPs.length} design project${DPs.length===1?"":"s"} · Project Architect + Architect Apprentices`})));
-  const SUBS=[["path","① Start here"],["overview","All projects"],["walls","Floor plan & walls"],["items","Item list"],["team","By person"],["myday",DESIGN_ROLES.includes(ROLE)?"My daily report":"Daily reports"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
-  v.append(el("div",{class:"opts subnav"},...SUBS.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}}))));
+  const SUBS=[["path","① Start here"],["overview","② Projects"],["walls","③ Floor plan & walls"],["items","④ Item list & release"],["myday",DESIGN_ROLES.includes(ROLE)?"⑤ My daily report":"⑤ Daily reports"]];
+  const MORE=[["team","By person"],["deliv","Deliverables & payments"],["timeline","Timeline"],["instr","Client instructions"],["visits","Site visits"],["revs","Revisions"]];
+  if(MORE.some(([k])=>k===dSub))DMORE=true;
+  v.append(el("div",{class:"opts subnav"},...SUBS.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}})),
+    el("button",{class:"opt mid","aria-pressed":DMORE?"true":"false",text:DMORE?"More ▴":"More ▾",onclick:()=>{DMORE=!DMORE;renderDesignStudio()}})));
+  if(DMORE)v.append(el("div",{class:"opts subnav dmore"},...MORE.map(([k,l])=>el("button",{class:"opt mid","aria-pressed":dSub===k?"true":"false",text:l,onclick:()=>{dSub=k;renderDesignStudio()}}))));
+  if(DINTRO[dSub])v.append(el("div",{class:"dintro"},el("b",{text:DINTRO[dSub][0]+" – "}),DINTRO[dSub][1]));
   if(["path","walls","items","team","myday"].includes(dSub)){if(dSub==="path")await renderDesignPath(v,my);else if(dSub==="walls")await renderWalls(v,my);else if(dSub==="items")await renderItemList(v,my);else if(dSub==="team")await renderTeam(v,my);else await renderMyDay(v,my);return}
   if(dSub!=="overview"){if(!DP||!isDesignProj(PROJS[DP]))DP=(DPs[0]||[])[0]||null;if(!DP){v.append(el("p",{class:"empty",text:"No design projects yet."}));return}
     const ps=el("select",{class:"fin","aria-label":"Design project"},...DPs.map(([id,c])=>el("option",{value:id,text:"Design project: "+c.name})));ps.value=DP;ps.onchange=()=>{DP=ps.value;try{localStorage.setItem("silong-dproj",DP)}catch(e){}renderDesignStudio()};v.append(el("div",{class:"form"},ps));
