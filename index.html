@@ -375,6 +375,20 @@ body.kiosk header .proj,body.kiosk header .dnav,body.kiosk header .track,body.ki
 .warea{margin:16px 0 2px;font-size:17px}.wstform{margin-top:10px;padding-top:6px;border-top:1px dashed var(--line)}
 .wday{margin-top:8px}.wdayh{display:flex;gap:8px;align-items:flex-start;cursor:pointer}.wdayh input{margin-top:4px;width:20px;height:20px}
 .porow{align-items:center}
+
+/* 26d design colours – readable in light and dark */
+:root{--dtint:#EAF3F1;--dwarnbg:#FDEFED;--dokbg:#E8F5E9;--dgrey:#F4F4F1;--dred:#B3261E;--dteal:#1F6F6B;--dpurple:#8E44AD}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--dtint:#1E3330;--dwarnbg:#3A1C1A;--dokbg:#183326;--dgrey:#232B31;--dred:#F07A6F;--dteal:#4FB3AC;--dpurple:#C39BD3}}
+:root[data-theme="dark"]{--dtint:#1E3330;--dwarnbg:#3A1C1A;--dokbg:#183326;--dgrey:#232B31;--dred:#F07A6F;--dteal:#4FB3AC;--dpurple:#C39BD3}
+.dcat,.dbox,.dwork,.dsect,.dintro,.wfrel,.dmenu,.dcath,.dcatd,.dboxt,.dboxd,.dsecn,.dsecd{color:var(--ink) !important}
+.dcat{background:var(--card) !important}.dcat.yours{border-color:var(--dteal) !important}.dcat.warn{background:var(--dwarnbg) !important;border-color:var(--dred) !important}.dcat.aat{border-color:var(--dpurple) !important}.dcat.help{background:none !important}
+.dbox{background:var(--card) !important;border-left-color:var(--dteal) !important}.dbox:hover,.dbox:active{background:var(--dtint) !important}
+.dwork{background:var(--dtint) !important}.dwork.late{background:var(--dwarnbg) !important;border-color:var(--dred) !important}
+.dsect,.dintro{background:var(--dtint) !important;border-left-color:var(--dteal) !important}
+.wfrel{background:var(--dgrey) !important}.wfrel.on{background:var(--dokbg) !important;border-color:#2e7d32 !important}
+.wfgap{color:var(--dred) !important}
+.dwhy{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.dwhy label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);color:var(--ink);font-size:14px;flex:1 1 260px;cursor:pointer}
+.dwhy label.on{background:var(--dwarnbg);border-color:var(--dred);font-weight:600}
 </style>
 </head>
 <body>
@@ -585,7 +599,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-26c"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-26d"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4181,6 +4195,10 @@ async function dMenuRender(v,my){
   if(["gm","head","arch"].includes(ROLE)){const late=R.filter(r=>r.due&&r.due<td);if(late.length){const by={};late.forEach(r=>{(by[r.who]=by[r.who]||[]).push(r)});
     const b=el("div",{class:"dcat warn"},el("div",{class:"dcath",text:`⚠ LATE – ${late.length} stage${late.length===1?"":"s"}`}),el("div",{class:"dcatd",text:Object.entries(by).map(([p,L])=>`${pname(p)} ${L.length}`).join(" · ")}));
     late.sort((a,b)=>a.due.localeCompare(b.due)).slice(0,6).forEach(r=>b.append(el("div",{class:"small",text:`${pname(r.who)} – ${r.w.pname} ${r.w.code} ${r.lab} (due ${fd(r.due)})`})));b.append(dBox("team","See By person","Everything each designer has.",false));w.append(b)}}
+  // delays reported in today's daily reports (managers)
+  if(["gm","head","arch"].includes(ROLE)){try{const reps=await loadDayReports(td);if(my!==RSEQ)return;const H=Object.values(reps).filter(r=>(r.reasons||[]).length||r.blocker);
+    if(H.length){const b=el("div",{class:"dcat warn"},el("div",{class:"dcath",text:`⏸ HELD UP TODAY – ${H.length} designer${H.length===1?"":"s"}`}),el("div",{class:"dcatd",text:"From today's daily reports."}));
+      H.forEach(r=>b.append(el("div",{class:"small",text:`${r.name||pname(r.uid)}: ${[...(r.reasons||[]),r.blocker].filter(Boolean).join(" · ")}`})));b.append(dBox("myday","See the daily reports","Everything each designer sent today.",false));w.append(b)}}catch(e){}}
   // AAT new-project checklist
   if(ROLE==="gm"){const DPs=wallProjs().filter(([,c])=>isDesignProj(c));const b=el("details",{class:"dcat aat"},el("summary",{},el("span",{class:"dcath",text:"🆕 NEW PROJECT – AAT CHECKLIST"})));
     b.append(el("ol",{class:"small",style:"margin:6px 0 8px 18px;padding:0;line-height:1.6"},el("li",{text:"Projects status → + Add a design project (name, client, fee)."}),el("li",{text:"Floor plan & walls → pick it → 📋 Scope of works: areas in / out, drawings needed, deadline, quote no."}),
@@ -4254,6 +4272,11 @@ async function renderAutoPlan(v,my){
     try{await db.collection("messages").doc("m"+now).set({project:WP,projName:projName(WP),type:"update",to:"appr",toAll:["arch","head"],from:ROLE,fromId:ME,subject:`New design work – ${projName(WP)}`,body:body+"\n\nOpen Design → YOUR WORK to start. Late ones show in red.",status:"open",replies:[],createdAt:now,updatedAt:now})}catch(_){}}
 }
 // ---- one-time morning message for the designers (26 Nov 2026) ----
+const DWHY=["Client asked for a revision","AAT or Miguel asked for a revision","Client asked for a meeting or site visit","Waiting for the client's answer or approval","Waiting for site measurements or info from site","Waiting for supplier or product details","Site change – the drawing has to change","Missing information","Pulled onto another project","Absent or half day"];
+async function seedTeamIntro(){if(!db||ROLE!=="gm")return;try{const mk=await db.doc("meta/dmsg26d").get();if(mk&&mk.exists)return;const now=Date.now();
+  await db.collection("messages").doc("m"+now+"t").set({project:"",projName:"Design team",type:"update",to:"appr",toAll:["arch","head"],from:"gm",fromId:ME,subject:"NEW – the Design tab in Silong Hub: what to do today",
+    body:"Good morning team. Silong Hub has a new Design tab. Open it and you will see the Design menu:\n• 👤 YOUR WORK at the top – the walls and stages given to you, with due dates. Red = late. Tap one to open the wall.\n• ① Floor plan & walls – choose the project, read the 📋 Scope of works first, + Add floor plan (one per floor), + Add a wall for every wall, fill in each wall form.\n• ② Item list – For Fabrication – every item from every wall. Nothing goes to the workshop or a fabricator until it is green and ✅ Approved for Fabrication.\n• ③ Daily report – by 4:45 PM every day, with screenshots, and tick anything that held you up (client revision, waiting for the client, missing info…).\n\nTODAY please:\n1. Design → ❓ Help: read the steps, then try everything in the project \"Practice – Design team\" (add a wall, fill in the wall form, send it for check).\n2. Start Cecil Salva Condo and Jazzy Cow: read the Scope of works, upload the floor plans, add the walls, then start the wall forms and fabrication drawings.\n3. Send your daily report by 4:45 PM.\n\nWho does what:\n• Irish and Kaye – floor plans, walls, wall forms, fabrication drawings.\n• Joma – checks the wall forms, presses ⚡ Auto-plan to share the work and set the dates, Approves for Fabrication.\n• Miguel – checks and Approves for Fabrication, watches the LATE box.\n• Barn Tagaytay – AAT handles this one.\n\nIf any screen is hard to read, tell Miguel. Questions → Miguel. – AAT",
+    status:"open",replies:[],createdAt:now,updatedAt:now});await db.doc("meta/dmsg26d").set({at:now})}catch(e){}}
 async function seedDesignMsg(){if(!db||ROLE!=="gm")return;try{const mk=await db.doc("meta/dmsg26").get();if(mk&&mk.exists)return;const now=Date.now();
   await db.collection("messages").doc("m"+now+"d").set({project:"",projName:"Design team",type:"update",to:"appr",toAll:["arch","head"],from:"gm",fromId:ME,subject:"TODAY – floor plans for Cecil Salva Condo and Jazzy Cow",
     body:"Good morning. Today please:\n1. Open Silong Hub → Design → ① Floor plan & walls.\n2. Choose \"Cecil Salva Condo – Park McKinley West\" at the top. Read the 📋 Scope of works (if it is still empty, ask AAT).\n3. Press + Add floor plan and upload every floor plan (one per floor). Then + Add a wall for every wall, with its code (e.g. LIV-W1).\n4. Do the same for \"Jazzy Cow\".\n5. Joma: when the walls are in, press ⚡ Auto-plan to share the work and set the dates.\nNew to the Hub? Design → ❓ Help has the steps, answers and a Practice project.\nDaily report by 4:45 PM. – AAT",
@@ -4272,7 +4295,7 @@ function dFaqBox(){const Q=[
   ["How do I print the worker pack or PM pack?","On the wall card press 🖨 Worker pack or 🖨 PM pack (or in ② Item list – For Fabrication for the whole project). It opens a new page with a Print button. Allow pop-ups if nothing opens. Print the worker pack on A3 at 100%."],
   ["A sample won't print on my phone.","Press Open, then Share → Print. The Print button works best on a computer."],
   ["Which words do I use – Hardiflex or fibre cement board?","Standard name first, Philippine term in brackets: fibre cement board (Hardiflex). See the Silong terms list in the samples below."],
-  ["When is the daily report due?","Every day by 4:45 PM in ③ Daily report: tick the walls you worked on, update the %, add screenshots. Anything blocking you goes in the report the same day."]];
+  ["When is the daily report due?","Every day by 4:45 PM in ③ Daily report: tick the walls you worked on, update the %, add screenshots, and tick anything that held you up (client revision, waiting for the client, missing info…)."]];
   const b=el("div",{class:"panel",style:"margin:8px 0;border-left:4px solid #e67e22"},el("div",{style:"font-weight:800;font-size:16px;margin-bottom:4px",text:"💬 Common questions"}));
   Q.forEach(([q,a])=>b.append(el("details",{class:"dfaq"},el("summary",{text:q}),el("div",{class:"small",text:a}))));return b}
 // ---- one-time: add the confirmed design projects (26 Nov 2026) – AAT's Hub does it, skips any already there ----
@@ -4826,13 +4849,16 @@ async function renderMyDay(v,my){
   v.append(sec("What I worked on today",String(R.length),"Tick each wall you worked on. Only ticked walls are reported.",box));
   const oth=el("textarea",{placeholder:"Other work today (meetings, site visit, revisions…)","aria-label":"Other work"});oth.value=(have&&have.other)||"";
   const blk=el("textarea",{placeholder:"Anything blocking you? e.g. waiting for client measurements, waiting for MEP","aria-label":"Blockers"});blk.value=(have&&have.blocker)||"";
+  const why=new Set((have&&have.reasons)||[]);const wbox=el("div",{class:"dwhy"});
+  DWHY.forEach(t=>{const cb=el("input",{type:"checkbox"});cb.checked=why.has(t);const lb=el("label",{class:why.has(t)?"on":""},cb,el("span",{text:t}));cb.onchange=()=>{cb.checked?why.add(t):why.delete(t);lb.className=cb.checked?"on":""};wbox.append(lb)});
+  v.append(sec("Anything that held you up today?",null,"Tick all that happened today. AAT and Miguel see it in the evening. A client or AAT revision must also be logged in Revisions.",wbox));
   v.append(sec("Other work & blockers",null,null,oth,blk));
   v.append(el("div",{class:"opts"},el("button",{class:"btn main",style:"width:100%;font-size:18px;padding:14px",text:have?"Send updated report":"Send my daily report",onclick:async e=>{
     const items=rows.filter(x=>x.on.checked).map(x=>({pid:x.r.w.pid,wid:x.r.w.id,st:x.r.k,code:x.r.w.code,wname:x.r.w.name||"",stage:x.r.lab,proj:x.r.w.pname,pct:Math.max(0,Math.min(100,+x.pc.value||0)),did:x.did.value.trim(),shots:x.shots}));
     if(!items.length&&!oth.value.trim()){toast("Tick at least one wall, or write what you did.");return}
     const size=JSON.stringify(items).length;if(size>900000){toast("Too many screenshots – remove a few and send again.");return}
     e.target.disabled=true;const at=Date.now();
-    try{await db.collection("dwrep").doc(key).set({uid:ME,name:pname(ME),role:ROLE,date:td,at,firstAt:(have&&have.firstAt)||at,late:!have&&dNowHM()>DREP_DUE||!!(have&&have.late),items,other:oth.value.trim(),blocker:blk.value.trim()});
+    try{await db.collection("dwrep").doc(key).set({uid:ME,name:pname(ME),role:ROLE,date:td,at,firstAt:(have&&have.firstAt)||at,late:!have&&dNowHM()>DREP_DUE||!!(have&&have.late),items,other:oth.value.trim(),blocker:blk.value.trim(),reasons:[...why]});
       // move the % on each wall stage
       await Promise.all(items.map(async it=>{try{const ref=db.collection(dcol(it.pid,"dwalls")).doc(it.wid);const cur=(await ref.get()).data()||{};const stg={...(cur.stages||{})};const x={...(stg[it.st]||{})};x.pct=it.pct;if(it.pct>=100)x.done=true;x.lastAt=at;x.lastBy=ME;stg[it.st]=x;await ref.update({stages:stg,updatedAt:at})}catch(err){}}));
       toast("Report sent ✓");renderDesignStudio()}catch(err){toast("Not sent – check the internet and try again.");e.target.disabled=false}}})));
@@ -4846,7 +4872,7 @@ async function reportsBoard(date){
     const d=el("details",{class:"panel gmcat"+(miss?" need":"")},el("summary",{},el("span",{style:"font-weight:700",text:p.name}),el("span",{class:"tag"+(r?"":miss?" due":""),style:"margin-left:auto",text:r?`sent ${dHM(r.at)}${r.late?" · late":""}`:miss?"MISSING":"not yet"})));
     if(r){(r.items||[]).forEach(it=>d.append(el("div",{class:"panel",style:"margin:6px 0"},el("div",{},el("span",{class:"wcode",text:it.code}),` ${it.wname} – ${it.stage}`),el("div",{class:"small",text:`${it.proj} · now ${it.pct}%`}),it.did?el("div",{class:"small",text:"📝 "+it.did}):"",
         (it.shots||[]).length?el("div",{class:"phgrid"},...it.shots.map(s_=>el("div",{class:"phwrap"},el("img",{src:s_,alt:it.code,loading:"lazy",onclick:()=>showPhoto(s_)})))):"")));
-      if(r.other)d.append(el("div",{class:"small",text:"Other: "+r.other}));if(r.blocker)d.append(el("div",{class:"small",style:"color:var(--late);font-weight:600",text:"⛔ Blocker: "+r.blocker}))}
+      if(r.other)d.append(el("div",{class:"small",text:"Other: "+r.other}));if(r.blocker)d.append(el("div",{class:"small",style:"color:var(--late);font-weight:600",text:"⛔ Blocker: "+r.blocker}));if((r.reasons||[]).length)d.append(el("div",{class:"small",style:"color:var(--late);font-weight:600",text:"⏸ Held up: "+r.reasons.join(" · ")}))}
     box.append(d)});
   if(!D.length)box.append(el("p",{class:"empty",text:"No designers set up yet."}));
   return box}
@@ -9466,7 +9492,7 @@ fillSelectors();applyRole();if(ROLE!=="none")go(cur);setTimeout(()=>{try{photoCl
   db.collection("apv").onSnapshot(s=>{const n={};s.docs.forEach(d=>{n[d.id]=d.data()||{}});const hb=hotCount();APV=n;pingHot(hb);acctBadge();gmBadge();if(tab==="buy"&&BUYOPEN==="b_apl"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))try{renderBuy()}catch(e){}if(["acct","gm","home"].includes(tab))refresh("apv")},()=>{});
   db.doc("settings/main").onSnapshot(d=>{SETTINGS=Object.assign({unplannedLimit:5000,creditLines:[{name:"Crown Ace",days:30},{name:"Nordsmaire Hardware",days:30}]},(d&&d.exists&&d.data())||{})},()=>{});
   applyRole();
-  db.collection("projects").onSnapshot(s=>{const n={[BARN]:BARN_CFG};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object"&&x.name&&d.id!==BARN)n[d.id]=x});PROJS=n;fillSelectors();watchAllOrders();setTimeout(()=>{try{seedDesignProjects()}catch(e){}},2600);setTimeout(()=>{try{seedDesignMsg()}catch(e){}},4200);setTimeout(()=>{try{seedClark()}catch(e){}},2500);if(!PROJS[P])setProject(BARN);else if(P!==BARN){applyProject()}if(tab==="gm")renderGM();if(tab==="design"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderDesignStudio()},()=>{});
+  db.collection("projects").onSnapshot(s=>{const n={[BARN]:BARN_CFG};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object"&&x.name&&d.id!==BARN)n[d.id]=x});PROJS=n;fillSelectors();watchAllOrders();setTimeout(()=>{try{seedDesignProjects()}catch(e){}},2600);setTimeout(()=>{try{seedDesignMsg()}catch(e){}},4200);setTimeout(()=>{try{seedTeamIntro()}catch(e){}},5200);setTimeout(()=>{try{seedClark()}catch(e){}},2500);if(!PROJS[P])setProject(BARN);else if(P!==BARN){applyProject()}if(tab==="gm")renderGM();if(tab==="design"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderDesignStudio()},()=>{});
   db.collection("suppliers").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});SUPPLIERS=n},()=>{});
   db.collection("messages").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const x=d.data();if(x&&typeof x==="object")n[d.id]=x});MSGS=n;msgBadge();if(tab==="msg"&&!(document.activeElement&&document.activeElement.matches("input,textarea,select")))renderMsg();if(tab==="buy")refresh("orders");if(tab==="gm")refresh("gm")},()=>{});
   subscribe();
