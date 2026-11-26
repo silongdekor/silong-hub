@@ -600,7 +600,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-26g"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-27h"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -1746,7 +1746,7 @@ async function renderAcct(){
   if(!db){v.append(el("p",{class:"empty",text:"Accounts works once you're signed in."}));return}
   const sc=el("div",{class:"opts"},...[["project","This project"],["company","Whole company"]].map(([k,l])=>el("button",{class:"opt mid","aria-pressed":acctScope===k?"true":"false",text:l,onclick:()=>{acctScope=k;renderAcct()}})));
   v.append(sc,el("p",{class:"small",text:"Loading…"}));
-  const {pay}=await scopeData();if(my!==RSEQ)return;if(HOLDS===null){await loadHolds();if(my!==RSEQ)return}const adv=advances(pay,acctScope);const U=urgentOf(pay,adv);
+  const {pay}=await scopeData();if(my!==RSEQ)return;if(HOLDS===null){await loadHolds();if(my!==RSEQ)return}try{await poAdvAutoPay(pay)}catch(e){}if(my!==RSEQ)return;const adv=advances(pay,acctScope);const U=urgentOf(pay,adv);
   v.lastChild.remove();
   const ua=U.reduce((t,u)=>t+(+u.amt||0),0);const td=iso(new Date());
   const UP=U.filter(isPayU),UO=U.filter(u=>!isPayU(u));
@@ -1811,7 +1811,7 @@ async function renderAcct(){
   if(OWNER||["gm","acct"].includes(ROLE)){let n_=0;try{n_=tsNeed().length}catch(e){}R("tsbiz","🏦","Payroll & two-step BizLink",n_,n_?`${n_} step${n_>1?"s":""} to do`:"Checking → Savings → staff",()=>tsView())}
   if(OWNER||["gm","acct"].includes(ROLE)){let n_=0,b_=0;try{const X=srAll(pay);n_=X.openN;b_=X.bal}catch(e){}R("subreg","🤝","Subcontractor register",n_,n_?`${n_} billing${n_>1?"s":""} to pay`:(b_?`${peso(b_)} contract balance`:"tap to open"),()=>subRegView(pay))}
   R("mplan","🛡","Project money plan",0,"profit & contingency",()=>moneyPlanView(pay));
-  R("overview","📈","Project overview",0,"tap to open");{const nc=liqToCheck().length,no=openDraws(e=>drawLiqDue(e)<td).length;R("pools","👛","Allowances & liquidations",nc,no?`${no} overdue`:(nc?"to check":"tap to open"),()=>el("div",{},liqPanel(),...poolsView()))}R("adv","💵","Cash advances",0,"tap to open");{const nD=Object.values(PSLIPS).filter(x=>x.status==="draft").length;R("payslips","🧾","Payslips",nD,nD?"to check & release":"tap to open",()=>psView())}
+  R("overview","📈","Project overview",0,"tap to open");{const nc=liqToCheck().length,no=openDraws(e=>drawLiqDue(e)<td).length;R("pools","👛","Allowances & liquidations",nc,no?`${no} overdue`:(nc?"to check":"tap to open"),()=>el("div",{},liqPanel(),...poolsView()))}R("adv","💵","Cash advances",0,"tap to open");if(["gm","acct"].includes(ROLE))R("pack","📦","Monthly pack for the bookkeeper",0,"Excel · by the 5th",()=>packView());{const nD=Object.values(PSLIPS).filter(x=>x.status==="draft").length;R("payslips","🧾","Payslips",nD,nD?"to check & release":"tap to open",()=>psView())}
   H("COMPANY");
   R("dues","🗓","Recurring bills schedule",0,"rent, utilities, loans");R("bills","📄","Bills & expenses",0,"tap to open");
   v.append(host);
@@ -2970,13 +2970,68 @@ function pdcView(pay){
   const cl=L.filter(c=>c.status==="cleared");if(cl.length)out.push(sec("Cleared",`${cl.length}`,null,el("div",{class:"panel"},...cl.slice(-20).reverse().map(c=>pdcRow(c,pay)))));
   return out;
 }
+// ---------- 26h: monthly pack for the bookkeeper / auditor (Excel) ----------
+function packView(){const box=el("div",{});const ym0=(()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return iso(d).slice(0,7)})();
+  const mi=el("input",{class:"fin",type:"month","aria-label":"Month"});mi.value=ym0;const st=el("div",{class:"small"});
+  box.append(el("div",{class:"small",style:"margin-bottom:6px",text:"Everything Accounts recorded in the Hub for one month, in one Excel file: collections, payments, bank movements, cash advances, partner's drawings, purchase orders, and what is still open. Send it to the bookkeeper every month (by the 5th), and keep it for the auditor."}),
+    el("div",{class:"form"},el("label",{class:"small fdate"},"Month ",mi),el("button",{class:"btn main",text:"⬇ Download the monthly pack (Excel)",onclick:async e=>{e.target.disabled=true;st.textContent="Collecting everything… (about 30 seconds)";try{await packBuild(mi.value,st)}catch(er){st.textContent="⚠ Couldn't make the file: "+(er.message||er)}e.target.disabled=false}})),st,
+    el("details",{class:"dfaq"},el("summary",{text:"What is in the pack?"}),el("div",{class:"small",style:"line-height:1.6",text:"1 Summary · 2 Collections (money received) · 3 Payments (suppliers, subcons, bills, payroll, requests, company dues) · 4 Bank movements (withdrawals, deposits, transfers) · 5 Cash advances + liquidations · 6 Partner's drawings · 7 Purchase orders · 8 Receivables still open · 9 Payables still open. Receipts and invoices stay attached in the Hub – the pack lists their reference numbers."})));
+  return box}
+async function packBuild(ym,st){if(!/^\d{4}-\d{2}$/.test(ym))throw new Error("choose a month");await loadXLSX();
+  const inM=d=>!!d&&String(d).slice(0,7)===ym;const num=v=>Math.round((+v||0)*100)/100;const pn=id=>id&&id!=="company"?projName(id):"Company";
+  const pay=await companyPay();const ADV=advances(pay,"company");
+  // collections
+  const col=Object.values(CASHMOVES||{}).filter(m=>m.kind==="in"&&m.received&&!m.void&&inM(m.receivedOn||m.on||m.due)).map(m=>[m.receivedOn||m.on||"",m.payee||"",pn(m.project),num(m.received_amt!=null?m.received_amt:m.amount),bankNameOf(m.bank)||m.bank||"",m.ref||"",m.note||""]);
+  // payments
+  const pm=pay.filter(p=>p.paid&&inM(p.paid.on)).map(p=>[p.paid.on,p.payee||"",p.cat||p.type||"",pn(p.project),p.what||"",num(p.paid.paidAmt!=null?p.paid.paidAmt:p.amt),bankNameOf(p.paid.bank)||(p.paid.bank?p.paid.bank:"cash / not from a bank"),p.paid.ref||"",p.ref||""]);
+  Object.values(OBPAY||{}).filter(p=>p.kind==="paid"&&inM(p.date||(p.paidAt?iso(new Date(p.paidAt)):""))).forEach(p=>{const o=OBS[p.ob]||{};pm.push([p.date||iso(new Date(p.paidAt)),o.name||"Company due",o.cat||"Company dues","Company",(p.months||[]).join(", "),num(p.amount),bankNameOf(p.bank)||"",p.ref||"",p.remarks||""])});
+  pm.sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  // bank movements
+  const bm=Object.values(CASHMOVES||{}).filter(m=>!m.void&&["withdraw","deposit","xfer"].includes(m.kind)&&inM(m.on||m.due||(m.at?iso(new Date(m.at)):""))).map(m=>[m.on||m.due||iso(new Date(m.at)),{withdraw:"Withdrawal",deposit:"Deposit",xfer:"Transfer"}[m.kind],m.kind==="xfer"?`${bankNameOf(m.from)||m.from} → ${bankNameOf(m.to)||m.to}`:(bankNameOf(m.bank)||m.bank||""),num(m.amount),m.payee||"",m.note||""]);
+  // advances
+  const av=ADV.filter(a=>inM(a.given)||(a.liq&&inM(a.liq.on))||!a.liq).map(a=>{const L=a.liq||{};const dr=+L.drawings||0;const short=a.liq?num(a.amt-(+L.receipts||0)-(+L.change||0)-dr):"";return [a.given||"",a.to||"",a.purpose||"",pn(a.project),num(a.amt),a.liq?L.on:"OPEN",a.liq?num(L.receipts):"",a.liq?num(L.change):"",a.liq?num(dr):"",short===""?"":(Math.abs(short)<1?0:short),L.refs||""]});
+  const dw=ADV.filter(a=>a.liq&&(+a.liq.drawings||0)>0&&inM(a.liq.on)).map(a=>[a.liq.on,a.to,num(a.liq.drawings),`From cash advance of ${a.given} (${peso(a.amt)})`,a.purpose||""]);
+  // POs
+  const po=Object.values(POS||{}).filter(x=>inM(x.date)&&!["void","declined"].includes(x.status)).map(x=>[x.no,x.date,(x.supplier||{}).name||"",pn(x.project),num(x.total),x.status,x.pay||"",x.payMode||"",x.paidFrom?`Paid from ${x.paidFrom.to}'s cash advance`:"",x.quoteRef||""]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
+  // open receivables + payables (as of today)
+  let rc=[];try{rc=acRecvData().open.flatMap(({r,C})=>(C.lines||[]).filter(l=>(+l.left||0)>=1).map(l=>[r.client||"",(typeof rTitle==="function"?rTitle(r):(r.title||"")),l.label||"",l.due||"",num(l.left)]))}catch(e){}
+  const op=acOpen(pay).map(p=>[p.payee||"",p.cat||p.type||"",pn(p.project),p.due||"",num(p.amt),p.ref||""]).sort((a,b)=>String(a[3]).localeCompare(String(b[3])));
+  const sum=a=>a.reduce((t,x)=>t+(+x||0),0);
+  const S=[["SILONG AMBIANT DEKOR CO. LTD. – MONTHLY PACK FOR THE BOOKKEEPER"],["Month",ym],["Made",new Date().toLocaleString("en-PH")+" by "+pname(ME)],[],
+    ["Collections (money received)",num(sum(col.map(r=>r[3]))),col.length+" entries"],["Payments made",num(sum(pm.map(r=>r[5]))),pm.length+" entries"],
+    ["Cash advances given this month",num(sum(ADV.filter(a=>inM(a.given)).map(a=>a.amt)))],["Cash advances still open (all months)",num(sum(ADV.filter(a=>!a.liq).map(a=>a.amt))),ADV.filter(a=>!a.liq).length+" open"],
+    ["Partner's drawings this month",num(sum(dw.map(r=>r[2])))],["Purchase orders this month",num(sum(po.map(r=>r[4]))),po.length+" POs"],
+    ["Receivables still open (today)",num(sum(rc.map(r=>r[4])))],["Payables still open (today)",num(sum(op.map(r=>r[4])))],[],
+    ["Receipts, invoices and quotes are attached in Silong Hub – the reference numbers are in each sheet."]];
+  const wb=XLSX.utils.book_new();const add=(n,h,rows,w)=>{const ws=XLSX.utils.aoa_to_sheet([h,...rows]);ws["!cols"]=(w||h.map(()=>18)).map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,ws,n)};
+  {const ws=XLSX.utils.aoa_to_sheet(S);ws["!cols"]=[{wch:42},{wch:18},{wch:40}];XLSX.utils.book_append_sheet(wb,ws,"1 Summary")}
+  add("2 Collections",["Date","From / billing","Project","Amount ₱","Into bank","Ref","Note"],col,[12,44,30,14,26,18,30]);
+  add("3 Payments",["Date paid","Paid to","Category","Project","What","Amount ₱","From bank","Payment ref","Invoice / order ref"],pm,[12,30,22,28,40,14,26,30,24]);
+  add("4 Bank movements",["Date","Type","Bank","Amount ₱","Payee","Note"],bm,[12,14,40,14,24,30]);
+  add("5 Cash advances",["Given","To","Purpose","Project","Amount ₱","Liquidated on","Receipts ₱","Change returned ₱","Partner's drawings ₱","Short ₱","OR nos / note"],av,[12,18,34,26,12,14,12,14,16,10,34]);
+  add("6 Partner's drawings",["Date","Partner","Amount ₱","Source","Note"],dw,[12,18,14,40,30]);
+  add("7 Purchase orders",["PO no.","Date","Supplier","Project","Total ₱","Status","Terms","Mode","Paid from advance","Quote ref"],po,[16,12,34,28,14,12,18,16,26,18]);
+  add("8 Receivables open",["Client","Receivable","Billing","Due","Still to collect ₱"],rc,[28,40,34,12,16]);
+  add("9 Payables open",["Pay to","Category","Project","Due","Amount ₱","Ref"],op,[30,22,28,12,14,24]);
+  const data=new Uint8Array(XLSX.write(wb,{type:"array",bookType:"xlsx"}));
+  const dl=await window.claude.use("downloads");if(!dl){st.textContent="Downloads aren't available here.";return}
+  await dl.save({filename:`Silong_Monthly_Pack_${ym}.xlsx`,data});st.textContent=`✓ Silong_Monthly_Pack_${ym}.xlsx – ${col.length} collections, ${pm.length} payments, ${av.length} advances, ${po.length} POs.`}
+// ---------- 26h: POs paid from a cash advance → marked paid automatically (CASH, no bank) ----------
+let POADV_DONE=new Set();
+async function poAdvAutoPay(pay){if(!["gm","acct"].includes(ROLE))return 0;let n=0;try{poWatch()}catch(e){}
+  for(const x of Object.values(POS||{})){if(!x||!x.paidFrom||!x.group||!["approved","sent"].includes(x.status))continue;
+    for(const p of pay){if(p.paid||p.src!=="order"||p.project!==x.project)continue;const k=String(p.key);if(!(k.startsWith(x.group+"|")||k==="d"+x.group+"|dfee"))continue;
+      const dk=p.project+"/"+k;if(POADV_DONE.has(dk))continue;POADV_DONE.add(dk);
+      try{await markPaid(p,`CASH – paid by ${x.paidFrom.to||"AAT"} from cash advance${x.paidFrom.given?" of "+fd(x.paidFrom.given):""} (${x.no})`,null,null);p.paid={on:iso(new Date()),ref:"cash advance"};n++}catch(e){}}}
+  if(n)toast(`${n} PO payment${n>1?"s":""} paid from a cash advance – marked paid, no bank deducted.`);return n}
 function advRow(a,why){
   const r=el("div",{class:"drow"},el("div",{class:"dtxt"},el("b",{text:`${a.to} – ${peso(a.amt)}`}),why?el("span",{class:"tag due",style:"margin-left:6px",text:why}):"",el("div",{class:"small",text:`${a.purpose||""} · given ${fd(a.given)}${a.liqBy?" · liquidate by "+fd(a.liqBy):""}${acctScope==="company"?" · "+projName(a.project):""}`})));
-  if(a.liq){r.append(el("div",{class:"small",style:"color:var(--done);font-weight:600",text:`Liquidated ${fd(a.liq.on)} · receipts ${peso(a.liq.receipts)} · change returned ${peso(a.liq.change)}${a.liq.refs?" · "+a.liq.refs:""}${Math.abs(a.amt-a.liq.receipts-a.liq.change)>1?` · ⚠ short ${peso(a.amt-a.liq.receipts-a.liq.change)}`:""}`}));return r}
-  const rc=el("input",{class:"fin",type:"number",placeholder:"Receipts total ₱","aria-label":"Receipts total"}),ch=el("input",{class:"fin",type:"number",placeholder:"Change returned ₱","aria-label":"Change returned"}),rf=el("input",{class:"fin",placeholder:"OR numbers","aria-label":"OR numbers"});
-  r.append(el("div",{class:"form"},rc,ch,rf,el("button",{class:"btn main",text:"Liquidate",onclick:async e=>{if(rc.value===""){rc.focus();return}const liq={on:iso(new Date()),receipts:+rc.value||0,change:+ch.value||0,refs:rf.value.trim()};e.target.disabled=true;
+  if(a.liq){r.append(el("div",{class:"small",style:"color:var(--done);font-weight:600",text:`Liquidated ${fd(a.liq.on)} · receipts ${peso(a.liq.receipts)} · change returned ${peso(a.liq.change)}${+a.liq.drawings?` · partner's drawings ${peso(a.liq.drawings)}`:""}${a.liq.refs?" · "+a.liq.refs:""}${Math.abs(a.amt-a.liq.receipts-a.liq.change-(+a.liq.drawings||0))>1?` · ⚠ short ${peso(a.amt-a.liq.receipts-a.liq.change-(+a.liq.drawings||0))}`:""}`}));return r}
+  const rc=el("input",{class:"fin",type:"number",placeholder:"Receipts total ₱","aria-label":"Receipts total"}),ch=el("input",{class:"fin",type:"number",placeholder:"Change returned ₱","aria-label":"Change returned"}),rf=el("input",{class:"fin",placeholder:"OR numbers","aria-label":"OR numbers"}),dw=el("input",{class:"fin",type:"number",placeholder:"Partner's drawings ₱ (kept by the partner)","aria-label":"Partner's drawings"});
+  const _left=()=>{const v=a.amt-(+rc.value||0)-(+ch.value||0);return v>0.5?v:0};rc.addEventListener("input",()=>{if(/^(aat|april|martin)/i.test(a.to||"")&&rc.value!=="")dw.placeholder=`Partner's drawings ₱ – balance ${peso(_left())}`});
+  r.append(el("div",{class:"form"},rc,ch,dw,rf,el("button",{class:"btn main",text:"Liquidate",onclick:async e=>{if(rc.value===""){rc.focus();return}const liq={on:iso(new Date()),receipts:+rc.value||0,change:+ch.value||0,drawings:+dw.value||0,refs:rf.value.trim()};e.target.disabled=true;
     try{if(a.src==="ledger")await db.collection("ledger").doc(a.id).update({liq,status:"liquidated",updatedAt:Date.now()});else{const D=a.project===P?{PD:PAID}:(ALLCACHE.data[a.project]||{PD:{}});const nv={...D.PD,[a.id]:{...D.PD[a.id],liq}};await db.doc(pdPath(a.project)).set(nv);if(ALLCACHE.data[a.project])ALLCACHE.data[a.project].PD=nv}
-      toast(Math.abs(a.amt-liq.receipts-liq.change)>1?"Liquidated – the amounts don't add up, flagged as short.":"Liquidated.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}})));
+      toast(Math.abs(a.amt-liq.receipts-liq.change-liq.drawings)>1?"Liquidated – the amounts don't add up, flagged as short.":"Liquidated.");renderAcct()}catch(err){toast("Not saved.");e.target.disabled=false}}})));
   return r;
 }
 function projSelect(def){const s_=el("select",{class:"fin","aria-label":"Charge to"},el("option",{value:"company",text:"Charge to: Company (general)"}),...Object.entries(PROJS).map(([id,c])=>el("option",{value:id,text:"Charge to: "+c.name})));s_.value=def||P;return s_}
@@ -5155,7 +5210,7 @@ function buildPoPdf(doc,x){const s=BS(),T=poTotals(x);const W=210,M=16,CW=W-2*M,
   y+=4+ad.length*3.4+1;doc.setDrawColor(...TEAL);doc.setLineWidth(.9);doc.line(M,y,W-M,y);y+=4;
   const su=x.supplier||{};
   const L=[[null,su.name||"—"],["Address",su.addr],["Contact",[su.contact,su.phone].filter(Boolean).join(" · ")],["Email",su.email],["TIN",su.tin],["Supplier quote",x.quoteRef]].filter(([k,v])=>k===null||v);
-  const R=[["PO date",x.date?fmt(x.date,{day:"numeric",month:"short",year:"numeric"}):""],["Project",projName(x.project)],["Deliver to",x.deliverTo],["Delivery date",(x.eta?fmt(x.eta,{day:"numeric",month:"short",year:"numeric"}):"")+(x.etaNote?" "+x.etaNote:"")],["Payment terms",x.pay],["Mode of payment",x.payMode],["Requested by",(x.preparedBy||{}).name]].filter(([,v])=>v);
+  const R=[["PO date",x.date?fmt(x.date,{day:"numeric",month:"short",year:"numeric"}):""],["Project",projName(x.project)],["Deliver to",x.deliverTo],["Delivery date",(x.eta?fmt(x.eta,{day:"numeric",month:"short",year:"numeric"}):"")+(x.etaNote?" "+x.etaNote:"")],["Payment terms",x.pay],["Mode of payment",(x.payMode||"")+(x.paidFrom?" – already paid (cash advance)":"")],["Requested by",(x.preparedBy||{}).name]].filter(([,v])=>v);
   const lw=CW*0.52,rw=CW-lw-4;doc.setFontSize(8.6);
   const lines=(rows,w)=>rows.map(([k,v])=>[k,wrap(v||"",w-(k?30:8))]);const LL=lines(L,lw),RR=lines(R,rw);
   const hgt=rows=>10+rows.reduce((t,[,v])=>t+Math.max(1,v.length)*4.1+0.6,0);const bh=Math.max(hgt(LL),hgt(RR))+2;
@@ -5209,6 +5264,8 @@ function poEditor(x,id){
   supIn.addEventListener("change",fill);
   const pay=el("select",{class:"fin","aria-label":"Payment"},...PAYS.map(v=>el("option",{value:v,text:v})));pay.value=PAYS.includes(x.pay)?x.pay:(CREDIT_PAYS.includes(x.pay)?"Credit line – PDC":"Cash on order");
   const pmode=el("select",{class:"fin","aria-label":"Mode of payment"},el("option",{value:"",text:"Choose…"}),...PAYMODES.map(v=>el("option",{value:v,text:v})));pmode.value=x.payMode||"";
+  const _adv=Object.entries(LEDGER||{}).filter(([k,e])=>e&&e.kind==="advance"&&(!e.liq||((x.paidFrom||{}).adv===k)));
+  const pfrom=el("select",{class:"fin","aria-label":"Already paid from a cash advance?"},el("option",{value:"",text:"No – Accounts pays the supplier"}),el("option",{value:"AAT",text:"Yes – paid by AAT (her cash advance)"}),..._adv.map(([k,e])=>el("option",{value:k,text:`Yes – from ${e.to}'s advance ${peso(e.amount)} (${fd(e.given)})`})));pfrom.value=(x.paidFrom||{}).adv||"";pfrom.onchange=()=>{if(pfrom.value)pmode.value="Cash"};
   const dest=el("select",{class:"fin","aria-label":"Deliver to (place)"},...DESTS().map(([k,t])=>el("option",{value:k,text:t})));dest.value=x.dest||"site";
   const addrOf_=(q,d)=>d==="workshop"?"Silong workshop / warehouse, Cubi":d==="office"?"Silong office, Cubi":(q?((PROJS[q]||{}).address||projName(q)+" – site"):"");const addrOf=d=>addrOf_(pid,d);
   dest.addEventListener("change",()=>{I.deliver.value=addrOf(dest.value)});
@@ -5252,7 +5309,7 @@ function poEditor(x,id){
     el("div",{class:"form"},el("button",{class:"btn",text:"+ Type an item not on the list",onclick:e=>{e.preventDefault();addRow()}})),
     el("div",{class:"form"},inp("why","Why it's needed (optional)",x.reason||x.notesWhy||"")),
     el("div",{class:"mini",style:"margin-top:10px"},el("b",{text:"3. Delivery & payment"})),
-    el("div",{class:"form"},lab("Deliver to",dest),inp("deliver","Delivery address",x.deliverTo||addrOf(dest.value)),lab("How it gets there",how),inp("eta","Delivery date",x.eta,"date"),inp("etaNote","Delivery time",x.etaNote,"text",{placeholder:"e.g. 8 AM – 12 NN"}),inp("del","Delivery charge ₱",x.delivery||"","number"),lab("Payment terms",pay),lab("Mode of payment *",pmode),lab("VAT",vat),lab("How urgent",urg)),totEl,impEl,
+    el("div",{class:"form"},lab("Deliver to",dest),inp("deliver","Delivery address",x.deliverTo||addrOf(dest.value)),lab("How it gets there",how),inp("eta","Delivery date",x.eta,"date"),inp("etaNote","Delivery time",x.etaNote,"text",{placeholder:"e.g. 8 AM – 12 NN"}),inp("del","Delivery charge ₱",x.delivery||"","number"),lab("Payment terms",pay),lab("Mode of payment *",pmode),lab("Already paid from a cash advance?",pfrom),lab("VAT",vat),lab("How urgent",urg)),totEl,impEl,
     id?"":QI,
     lab("Notes to the supplier (optional)",(()=>{const t=el("textarea",{"aria-label":"Notes"});t.value=x.notes||"";I.notes=t;return t})(),true),
     inp("by","Prepared by",(x.preparedBy||{}).name||((ACCESS[ME]||{}).name||NAMES[ME]||(ROLE==="gm"?"AAT-Gen Manager":""))),err);
@@ -5260,7 +5317,7 @@ function poEditor(x,id){
   (x.items&&x.items.length?x.items:[{}]).forEach(addRow);refreshPick();
   const collect=()=>({project:projSel.value,group:x.group||"",orderIds:x.orderIds||[],fromPending:true,poOrders:!!x.poOrders||!x.group,reqId:x.reqId||"",msgId:x.msgId||"",
     supplier:{name:supIn.value.trim(),addr:I.saddr.value.trim(),contact:I.scontact.value.trim(),phone:I.sphone.value.trim(),email:I.semail.value.trim(),tin:I.stin.value.trim()},
-    quoteRef:I.quote.value.trim(),date:x.date||iso(new Date()),dest:dest.value,deliverTo:I.deliver.value.trim(),how:how.value,eta:I.eta.value,etaNote:I.etaNote.value.trim(),pay:pay.value,payMode:pmode.value,items:getItems(),delivery:+I.del.value||0,vat:vat.value,
+    quoteRef:I.quote.value.trim(),date:x.date||iso(new Date()),dest:dest.value,deliverTo:I.deliver.value.trim(),how:how.value,eta:I.eta.value,etaNote:I.etaNote.value.trim(),pay:pay.value,payMode:pmode.value,paidFrom:pfrom.value?{adv:pfrom.value,to:pfrom.value==="AAT"?"AAT":((LEDGER[pfrom.value]||{}).to||""),given:pfrom.value==="AAT"?"":((LEDGER[pfrom.value]||{}).given||"")}:null,items:getItems(),delivery:+I.del.value||0,vat:vat.value,
     category:cat.value,reason:I.why.value.trim(),urgent:urg.value==="u",notes:I.notes.value.trim(),
     preparedBy:{uid:ME,name:I.by.value.trim(),title:ROLE==="buy"?"Purchasing Officer":ROLE==="gm"?"General Manager":""}});
   const bad=t=>{err.textContent=t;err.style.display="block";toast(t)};
@@ -5322,7 +5379,7 @@ function poPendItems(){poWatch();const out=[];Object.values(POS).forEach(x=>{if(
   out.push({kind:"po",no:x.no,x,pid:x.project||"company",payee:`${x.no} · ${(x.supplier||{}).name||""}`,amt:+x.total||0,urgent:false,what:(x.items||[]).map(l=>l.desc).join(", "),why:"",need:x.eta||"",at:x.createdAt||0})});return out}
 function poApvCard(it){const x=it.x;const c=el("div",{class:"qcard"});
   c.append(el("div",{class:"qtop"},el("b",{text:`📄 ${x.no} – ${(x.supplier||{}).name} – ${peso(x.total)}`})),
-    el("div",{class:"small",text:`${projName(x.project)} · purchase order from ${(x.preparedBy||{}).name||"Purchasing"}${x.eta?" · delivery "+fd(x.eta):""} · ${x.pay||""}${x.payMode?" · "+x.payMode:""}`}),
+    el("div",{class:"small",text:`${projName(x.project)} · purchase order from ${(x.preparedBy||{}).name||"Purchasing"}${x.eta?" · delivery "+fd(x.eta):""} · ${x.pay||""}${x.payMode?" · "+x.payMode:""}${x.paidFrom?" · 💵 ALREADY PAID from "+x.paidFrom.to+"'s cash advance – Accounts: do not pay":""}`}),
     el("div",{class:"small",text:(x.items||[]).map(l=>`${l.desc} (${l.qty} ${l.unit||""})`).join(", ")}),
     el("div",{class:"opts"},el("button",{class:"btn",text:"📄 View PO (PDF)",onclick:()=>poPdf(x)})));
   const f=el("div",{class:"opts"});
@@ -5339,7 +5396,7 @@ function poDetail(no){const x=POS[no];const box=el("div",{class:"panel"});if(!x)
   const T=poTotals(x);const st=PO_ST[x.status]||["",""];
   box.append(el("div",{class:"mini"},el("b",{style:"font-size:18px",text:x.no}),el("span",{class:"tag "+st[1],style:"margin-left:8px",text:st[0]})),
     el("div",{class:"small",text:`${(x.supplier||{}).name} · ${projName(x.project)} · ${fd(x.date)} · prepared by ${(x.preparedBy||{}).name||""}`}),
-    el("div",{class:"small",text:`Deliver to ${x.deliverTo||"—"}${x.eta?" · "+fd(x.eta):""}${x.etaNote?" "+x.etaNote:""} · ${x.pay||""}${x.payMode?" · "+x.payMode:""}${x.quoteRef?" · quote "+x.quoteRef:""}`}),
+    el("div",{class:"small",text:`Deliver to ${x.deliverTo||"—"}${x.eta?" · "+fd(x.eta):""}${x.etaNote?" "+x.etaNote:""} · ${x.pay||""}${x.payMode?" · "+x.payMode:""}${x.paidFrom?" · 💵 ALREADY PAID from "+x.paidFrom.to+"'s cash advance – Accounts: do not pay":""}${x.quoteRef?" · quote "+x.quoteRef:""}`}),
     el("div",{style:"margin:8px 0"},...(x.items||[]).map((l,i)=>el("div",{class:"small"},`${i+1}. ${l.plan?"📋 ":""}${l.desc} – ${l.qty} ${l.unit||""} × ${peso(l.price)} = `,el("b",{text:peso((+l.qty||0)*(+l.price||0))})))),
     el("div",{class:"mini",style:"font-weight:700",text:`Total ${peso(T.total)}${x.vat==="incl"?" (VAT included)":x.vat==="add"?" (12% VAT added)":""}`}),
     x.reason?el("div",{class:"small",text:"Why: "+x.reason}):"",
