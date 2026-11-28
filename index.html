@@ -600,7 +600,7 @@ function boot(){
     if(gate)gate.style.display="none";
     if(!started){started=true;writeProfile(u).then(function(){readyRes()});footer(u)}})}
 function footer(u){var f=h("div",{id:"fbfoot"});document.body.appendChild(f);
-  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-27j"}));
+  var line=h("div",{},["Signed in as "+(u.email||"")+" · ",h("button",{text:"Sign out",onclick:function(){if(confirm("Sign out of Silong Hub on this device?"))auth.signOut()}})]);f.appendChild(line);f.appendChild(h("div",{style:"font-size:11px;opacity:.6;margin-top:4px",text:"Hub version 2026-11-27k"}));
   if(!u.emailVerified)f.appendChild(h("div",{},["✉ Email not verified yet · ",h("button",{text:"Resend",onclick:function(){u.sendEmailVerification().then(function(){alert("Verification email sent to "+u.email)},function(){alert("Couldn't send – try later.")})}}),"· ",h("button",{text:"I've verified – reload",onclick:function(){u.reload().then(function(){return u.getIdToken(true)}).then(function(){location.reload()})}})]));
   pushUI(f);
   checkOwner().then(function(o){if(o)f.appendChild(h("div",{},[h("button",{text:"🛠 Data tools (move from old Hub, link accounts)",onclick:tools})]))})}
@@ -4697,7 +4697,7 @@ function daeParse(text,file){
   const I4=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
   const nodeM=e=>{let M=I4;for(const c of e.children){if(c.localName==="matrix")M=mul(M,c.textContent.trim().split(/\s+/).map(Number));else if(c.localName==="translate"){const [x,y,z]=c.textContent.trim().split(/\s+/).map(Number);M=mul(M,[1,0,0,x,0,1,0,y,0,0,1,z,0,0,0,1])}else if(c.localName==="scale"){const [x,y,z]=c.textContent.trim().split(/\s+/).map(Number);M=mul(M,[x,0,0,0,0,y,0,0,0,0,z,0,0,0,0,1])}}return M};
   const bb=()=>({mn:[1e18,1e18,1e18],mx:[-1e18,-1e18,-1e18]});const ext=(b,p)=>{for(let i=0;i<3;i++){if(p[i]<b.mn[i])b.mn[i]=p[i];if(p[i]>b.mx[i])b.mx[i]=p[i]}};const ok=b=>b.mx[0]>=b.mn[0];
-  const W={},IT={},MATS={};const addA=(o,k,a)=>{o[k]=(o[k]||0)+a};
+  const W={},IT={},MATS={},GBK={},SEEN=new Set();const addA=(o,k,a)=>{o[k]=(o[k]||0)+a};const addB=(o,k,b,a)=>{const x=o[k]=o[k]||[0,0,0,0,0,0];x[b]+=a};let nDup=0;
   const nm=e=>{let n=(e.getAttribute("name")||"").trim();if(!n||/^(instance|group|component|node|ID)[_ ]?\d+$/i.test(n)||/^ID\d+$/.test(n)){const inn=kid(e,"instance_node");const d=inn&&byId[inn.getAttribute("url")];if(d)n=(d.getAttribute("name")||n).trim()}return n.replace(/_/g," ").trim()};
   let guard=0;
   const walk=(e,M,ctx,depth)=>{if(++guard>2e6||depth>60)return;const Mw=mul(M,nodeM(e));const name=nm(e);const up=name.toUpperCase();let c={...ctx};
@@ -4716,21 +4716,26 @@ function daeParse(text,file){
         for(let i=0;i<nv;i++){const x=P[i*3],y=P[i*3+1],z=P[i*3+2];for(let r=0;r<3;r++)tmp[r]=Mw[r*4]*x+Mw[r*4+1]*y+Mw[r*4+2]*z+Mw[r*4+3];wp[i*3]=tmp[0];wp[i*3+1]=tmp[1];wp[i*3+2]=tmp[2];
           if(c.wall){ext(c.wall.ba,tmp);if(!c.item)ext(c.wall.b,tmp)}if(c.item)ext(c.item.b,tmp);
           if(pp){const lp=[0,0,0];for(let r=0;r<3;r++)lp[r]=(Ml[r*4]*x+Ml[r*4+1]*y+Ml[r*4+2]*z+Ml[r*4+3])*S[r];ext(pp.b,lp)}}
+        const vk=i=>Math.round(wp[i]*toMM)+","+Math.round(wp[i+1]*toMM)+","+Math.round(wp[i+2]*toMM);
         g.tris.forEach(t=>{const mt=bind[t.sym]||matName("#"+t.sym);let a=0;const ix=t.idx;for(let k=0;k+2<ix.length;k+=3){const i0=ix[k]*3,i1=ix[k+1]*3,i2=ix[k+2]*3;
+            const key=[vk(i0),vk(i1),vk(i2)].sort().join("|");if(SEEN.has(key)){nDup++;continue}SEEN.add(key); // 27k: two-sided export repeats every face – count it once
             const ux=wp[i1]-wp[i0],uy=wp[i1+1]-wp[i0+1],uz=wp[i1+2]-wp[i0+2],vx_=wp[i2]-wp[i0],vy=wp[i2+1]-wp[i0+1],vz=wp[i2+2]-wp[i0+2];
-            a+=0.5*Math.hypot(uy*vz-uz*vy,uz*vx_-ux*vz,ux*vy-uy*vx_)}
+            const nx=uy*vz-uz*vy,ny=uz*vx_-ux*vz,nz=ux*vy-uy*vx_;const ta=0.5*Math.hypot(nx,ny,nz);a+=ta;
+            const N=[nx,ny,nz],ab=N.map(Math.abs),da=ab[0]>=ab[1]&&ab[0]>=ab[2]?0:ab[1]>=ab[2]?1:2,bi=da*2+(N[da]<0?1:0),tm2=ta*toMM*toMM/1e6;
+            addB(GBK,mt,bi,tm2);if(c.wall&&!c.item){c.wall.bk=c.wall.bk||{};addB(c.wall.bk,mt,bi,tm2)}if(c.item){c.item.bk=c.item.bk||{};addB(c.item.bk,mt,bi,tm2)}}
           const m2=a*toMM*toMM/1e6;addA(MATS,mt,m2);if(c.wall)addA(c.wall.mats,mt,m2);if(c.item)addA(c.item.mats,mt,m2);if(pp)addA(pp.mats,mt,m2)})}}};
   const vs=doc.getElementsByTagName("visual_scene")[0];if(!vs)throw new Error("no scene in the file");for(const n of kids(vs,"node"))walk(n,I4,{},0);
+  const twoSide=bk=>{const o={};Object.entries(bk||{}).forEach(([mt,b])=>{const tot=b.reduce((x,y)=>x+y,0);if(tot<0.05)return;let best=null;for(let a=0;a<3;a++){const lo=Math.min(b[2*a],b[2*a+1]);if(lo>0.3*tot&&(!best||lo>best.lo))best={lo,one:Math.max(b[2*a],b[2*a+1])}}if(best)o[mt]=Math.round(best.one*100)/100});return o};
   const mm=v=>Math.round(v*toMM);const top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);const r2=o=>Object.fromEntries(top(o).slice(0,40).map(([k,v])=>[k,Math.round(v*100)/100]));
   const walls={};Object.entries(W).forEach(([k,w])=>{if(!ok(w.b))w.b=w.ba;if(!ok(w.b))return;const d=HZ.map(i=>w.b.mx[i]-w.b.mn[i]);const ax=d[0]>=d[1]?HZ[0]:HZ[1];const ox=ax===HZ[0]?HZ[1]:HZ[0];
-    walls[k]={name:w.name,len:mm(w.b.mx[ax]-w.b.mn[ax]),ht:mm(w.b.mx[UP]-w.b.mn[UP]),dep:mm(w.b.mx[ox]-w.b.mn[ox]),ax,mn:w.b.mn.map(mm),mats:r2(w.mats)}});
+    walls[k]={name:w.name,len:mm(w.b.mx[ax]-w.b.mn[ax]),ht:mm(w.b.mx[UP]-w.b.mn[UP]),dep:mm(w.b.mx[ox]-w.b.mn[ox]),ax,mn:w.b.mn.map(mm),mats:r2(w.mats),two:twoSide(w.bk)}});
   const items={};Object.entries(IT).forEach(([code,it])=>{if(!ok(it.b))return;const wl=walls[it.wall];const d=HZ.map(i=>it.b.mx[i]-it.b.mn[i]);
     const ax=wl?wl.ax:(d[0]>=d[1]?HZ[0]:HZ[1]);const ox=ax===HZ[0]?HZ[1]:HZ[0];
     const parts={};it.parts.filter(p=>ok(p.b)).forEach(p=>{const s_=[0,1,2].map(i=>mm(p.b.mx[i]-p.b.mn[i])).sort((a,b)=>b-a);const mt=(top(p.mats)[0]||[""])[0];const k=[p.name,...s_,mt].join("|");parts[k]=parts[k]||[p.name,s_[0],s_[1],s_[2],0,mt];parts[k][4]++});
     items[code]={wall:it.wall,name:it.name,w:mm(it.b.mx[ax]-it.b.mn[ax]),h:mm(it.b.mx[UP]-it.b.mn[UP]),d:mm(it.b.mx[ox]-it.b.mn[ox]),
-      x:wl?Math.max(0,mm(it.b.mn[ax])-wl.mn[ax]):"",y:wl?Math.max(0,mm(it.b.mn[UP])-wl.mn[UP]):"",mat:(top(it.mats)[0]||[""])[0],mats:r2(it.mats),parts:Object.values(parts).slice(0,80)}});
+      x:wl?Math.max(0,mm(it.b.mn[ax])-wl.mn[ax]):"",y:wl?Math.max(0,mm(it.b.mn[UP])-wl.mn[UP]):"",mat:(top(it.mats)[0]||[""])[0],mats:r2(it.mats),two:twoSide(it.bk),parts:Object.values(parts).slice(0,80)}});
   const wallsMats={};Object.values(items).forEach(it=>{if(!walls[it.wall])wallsMats[it.wall]=1});
-  return {file,at:Date.now(),walls,items,mats:r2(MATS),wallsNoGroup:Object.keys(wallsMats),nItems:Object.keys(items).length,nWalls:Object.keys(walls).length}}
+  return {file,at:Date.now(),walls,items,mats:r2(MATS),two:twoSide(GBK),nDup,wallsNoGroup:Object.keys(wallsMats),nItems:Object.keys(items).length,nWalls:Object.keys(walls).length}}
 // apply the model to one wall's form – Hub rows marked src:"model", team rows untouched
 function modelMergeForm(f,M,code){f=JSON.parse(JSON.stringify(f||{}));const wl=M.walls[code];const its=Object.entries(M.items).filter(([,x])=>x.wall===code);let n=0;
   if(wl){if(wl.len)f.len=wl.len;if(wl.ht)f.ht=wl.ht}f.items=f.items||[];
@@ -4746,7 +4751,7 @@ async function modelApplyAll(pid,M){const D=await loadWalls(pid);const done=[],s
   for(const [id,w] of Object.entries(D.walls||{})){const code=(w.code||"").toUpperCase();if(!M.walls[code]&&!Object.values(M.items).some(x=>x.wall===code))continue;const f0=wfOf(w);
     if(f0.status==="ok"||f0.rel){skip.push(code);continue}
     const {f,n}=modelMergeForm(f0,M,code);const parts={};Object.entries(M.items).filter(([,x])=>x.wall===code).forEach(([c,x])=>parts[c]=x.parts);
-    await db.collection(dcol(pid,"dwalls")).doc(id).update({form:f,model:{at:M.at,file:M.file,by:M.by||"",mats:(M.walls[code]||{}).mats||{},parts,items:n},updatedAt:Date.now()});done.push(code)}
+    await db.collection(dcol(pid,"dwalls")).doc(id).update({form:f,model:{at:M.at,file:M.file,by:M.by||"",mats:(M.walls[code]||{}).mats||{},two:(M.walls[code]||{}).two||{},parts,items:n},updatedAt:Date.now()});done.push(code)}
   return {done,skip}}
 function modelBox(pid){const M=MODEL[pid];const box=el("details",{class:"panel grp",style:"border-left:5px solid var(--dteal,#1F6F6B)"},el("summary",{},el("b",{text:"📦 SketchUp model (Collada)"}),el("span",{class:"small",style:"margin-left:8px",text:M?`${M.file} · ${fd(iso(new Date(M.at)))} · ${M.nWalls} walls, ${M.nItems} items`:"not uploaded yet"})));
   box.append(el("div",{class:"small",text:"Upload the model and the Hub fills in the item sizes and positions in every wall form, the material quantities and a draft cut list. The team checks every number before sending for check."}));
@@ -4757,7 +4762,7 @@ function modelBox(pid){const M=MODEL[pid];const box=el("details",{class:"panel g
     el("div",{text:"PARTS: inside each item, every panel / board its own group or component (side panel, top, shelf…). The Hub lists them as the draft cut list."}),
     el("div",{text:"MATERIALS: name them like the finish, e.g. F-01 Oak veneer, Stone tile Calacatta. The Hub uses the names for the finish and the quantities."}),
     el("div",{text:"Every time the model changes, upload it again – it replaces the old one. Walls already Approved for Fabrication are never changed."}))));
-  if(M){const mt=Object.entries(M.mats||{}).slice(0,25);if(mt.length)box.append(el("div",{class:"small",style:"font-weight:700;margin-top:6px",text:"Materials in the model (surface area, m² – GENERATED BY THE HUB, Purchasing adds waste):"}),wfTable(["Material","m²"],mt.map(([k,v])=>[k,v.toFixed(2)])));
+  if(M){const mt=Object.entries(M.mats||{}).slice(0,25);if(mt.length)box.append(el("div",{class:"small",style:"font-weight:700;margin-top:6px",text:"Materials in the model (surface area, m² – GENERATED BY THE HUB, Purchasing adds waste):"}),wfTable(["Material","m²"],mt.map(([k,v])=>[k,v.toFixed(2)+((M.two||{})[k]!=null?` ⚠ painted on both sides – one side ${(+M.two[k]).toFixed(2)}`:"")])));if(Object.keys(M.two||{}).length)box.append(el("div",{class:"small",style:"color:#b3261e;margin-top:4px",text:"⚠ = the material is on the front AND the back (usually the whole group was painted). The m² counts every face. If only the front is finished, paint the FACE, not the group, and upload again – or use the one-side figure."}));
     const noW=Object.keys(M.walls).filter(k=>!Object.values(WALLS).some(w=>(w.code||"").toUpperCase()===k));if(noW.length)box.append(el("div",{class:"wfgap",text:"⚠ In the model but not in the Hub: "+noW.join(", ")+" – add these walls (same code) or fix the group names."}))}
   if(canModel()){const fi=el("input",{type:"file",accept:".dae,model/vnd.collada+xml","aria-label":"Collada file"});const st=el("div",{class:"small"});
     const go=el("button",{class:"btn main",text:M?"⬆ Upload the new model":"⬆ Upload the model",onclick:async e=>{const f=fi.files[0];if(!f){toast("Choose the .dae file first.");return}if(!/\.dae$/i.test(f.name)){toast("It must be a .dae (Collada) file.");return}
@@ -4777,7 +4782,7 @@ function modelWallBox(id,w){const M=MODEL[WP];const code=(w.code||"").toUpperCas
   const f=wfOf(w);const b=el("div",{class:"small",style:"margin-top:6px"});
   if(w.model)b.append(el("div",{text:`🤖 ${w.model.items||0} item${w.model.items===1?"":"s"} filled by the HUB from ${w.model.file} (${fd(iso(new Date(w.model.at)))}) – check every size against the site.`}));
   if(has&&canModel()&&f.status!=="ok"&&!f.rel&&(!w.model||w.model.at!==M.at))b.append(el("button",{class:"btn",text:"⬇ Fill this wall from the model",onclick:async e=>{e.target.disabled=true;try{const {f:nf,n}=modelMergeForm(f,M,code);const parts={};Object.entries(M.items).filter(([,x])=>x.wall===code).forEach(([c,x])=>parts[c]=x.parts);
-    await db.collection(dcol(WP,"dwalls")).doc(id).update({form:nf,model:{at:M.at,file:M.file,mats:(M.walls[code]||{}).mats||{},parts,items:n},updatedAt:Date.now()});toast(`${n} items filled by the Hub.`);WOPEN=id;renderDesignStudio()}catch(er){toast("Not saved.");e.target.disabled=false}}}));
+    await db.collection(dcol(WP,"dwalls")).doc(id).update({form:nf,model:{at:M.at,file:M.file,mats:(M.walls[code]||{}).mats||{},two:(M.walls[code]||{}).two||{},parts,items:n},updatedAt:Date.now()});toast(`${n} items filled by the Hub.`);WOPEN=id;renderDesignStudio()}catch(er){toast("Not saved.");e.target.disabled=false}}}));
   else if(!has&&M)b.append(el("div",{text:`Not in the model yet – name the wall group ${code} in SketchUp.`}));
   return b}
 // ---------- WALL FORM + ITEM LIST (25 Nov 2026) ----------
@@ -4968,7 +4973,7 @@ function pkWorkerPages(proj,w){const f=wfOf(w);const out=[];
 function pkPMPage(proj,w){const f=wfOf(w);const G=wfGaps(f);
   return pkHead(proj,w,"PM PACK – FULL WALL",f)+`<div class="meta">Wall form: <b>${pkEsc(WF_ST[f.status]||"not filled in")}</b>${f.checkedBy?" · checked by "+pkEsc(pname(f.checkedBy))+" "+pkDate(f.checkedAt):""}${f.rel?" · approved for fabrication by "+pkEsc(pname(f.rel.by))+" to "+pkEsc((f.rel.to||[]).join(", ")):""}${f.dwg?" · drawing "+pkEsc(f.dwg):""}</div>`+
     pkVis(w,true)+`<div class="el sm">${pkElev(f,(f.items||[]).filter(x=>x.by!=="Client supply"),f.pts||[])}</div>`+
-    ((f.items||[]).length?pkTable(["Code","Source","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],f.items.map(x=>[x.code,srcLab(x),x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg]))+`<div class="meta">Source: HUB = generated by the Hub from the SketchUp model · TEAM = entered by our design team · HUB + TEAM = Hub size changed by the team.</div>`+(w.model?`<div class="conf" style="background:#e6f2f1;border-left-color:#1F6F6B"><b>GENERATED BY THE HUB</b> from the SketchUp model ${pkEsc(w.model.file||"")} (${pkDate(w.model.at)}) – draft, the team checks every size before cutting.</div>`+pkTable(["Item","Part","L","W","T","Qty","Material"],Object.entries(w.model.parts||{}).flatMap(([ic,P])=>(P||[]).map(p=>[ic,p[0],p[1],p[2],p[3],p[4],p[5]])))+pkTable(["Material (this wall)","m²"],Object.entries(w.model.mats||{}).map(([k,v])=>[k,(+v).toFixed(2)])):""):"")+
+    ((f.items||[]).length?pkTable(["Code","Source","Item","W × H × D","Finish","Doors / drawers","Made by","Drawing"],f.items.map(x=>[x.code,srcLab(x),x.item,wfSize(x),x.finish,x.dd,x.by,x.dwg]))+`<div class="meta">Source: HUB = generated by the Hub from the SketchUp model · TEAM = entered by our design team · HUB + TEAM = Hub size changed by the team.</div>`+(w.model?`<div class="conf" style="background:#e6f2f1;border-left-color:#1F6F6B"><b>GENERATED BY THE HUB</b> from the SketchUp model ${pkEsc(w.model.file||"")} (${pkDate(w.model.at)}) – draft, the team checks every size before cutting.</div>`+pkTable(["Item","Part","L","W","T","Qty","Material"],Object.entries(w.model.parts||{}).flatMap(([ic,P])=>(P||[]).map(p=>[ic,p[0],p[1],p[2],p[3],p[4],p[5]])))+pkTable(["Material (this wall)","m²"],Object.entries(w.model.mats||{}).map(([k,v])=>[k,(+v).toFixed(2)+((w.model.two||{})[k]!=null?` ⚠ both sides painted – one side ${(+w.model.two[k]).toFixed(2)}`:"")])):""):"")+
     ((f.pts||[]).length?pkTable(["Code","Point","Height","From left","Trade","Note"],f.pts.map(p=>[p.code,p.point,p.h!==""?fmtMM(+p.h):"⚠",p.x!==""?fmtMM(+p.x):"⚠",(WF_TRADES.find(t=>t[0]===p.t)||["","–"])[1],p.note])):"")+
     ((f.fin||[]).length?pkTable(["Code","Where","Finish","By"],f.fin.map(x=>[x.code,x.where,x.finish,x.by])):"")+
     (G.length?`<div class="conf"><b>Missing:</b> ${G.map(pkEsc).join(" · ")}</div>`:"")+pkConf(f)}
